@@ -1,0 +1,77 @@
+title: 'Signed Windows tool used to run remote or script code (mshta, regsvr32, InstallUtil, cmstp, bitsadmin, certutil)'
+id: '9727a658-ce7c-50ce-947d-c98261c8d37a'
+name: detlab_det_016
+status: experimental
+description: 'Windows ships many signed programs that can load and run code from a script, a library, or a web address. Attackers use them because security tools trust them. The rule matches each tool only when the command line shows the abusive form: mshta with a web address or an HTA file, regsvr32 loading scrobj.dll or a remote script, InstallUtil run with the uninstall switch and no log, cmstp with the auto-elevate switch, bitsadmin downloading from the web, certutil downloading or decoding, rundll32 running script, and wmic loading a remote style sheet.'
+author: 'Detection Lab'
+date: '2026-11-04'
+tags:
+  - attack.stealth
+  - attack.t1218
+  - attack.t1218.003
+  - attack.t1218.004
+  - attack.t1218.005
+  - attack.t1218.010
+  - attack.t1197
+  - attack.t1105
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_1:
+    Image|endswith: '\mshta.exe'
+    CommandLine|re|i: '(https?://|\.hta\b|\.sct\b|javascript:|vbscript:)'
+  selection_2:
+    OriginalFileName: mshta.exe
+    CommandLine|re|i: '(https?://|\.hta\b|\.sct\b|javascript:|vbscript:)'
+  selection_3:
+    Image|endswith: '\regsvr32.exe'
+    CommandLine|re|i: '(scrobj\.dll|/i:\S*(https?://|\.sct))'
+  selection_4:
+    OriginalFileName: regsvr32.exe
+    CommandLine|re|i: '(scrobj\.dll|/i:\S*(https?://|\.sct))'
+  selection_5:
+    Image|endswith: '\installutil.exe'
+    CommandLine|re|i|all:
+      - '\s/u\b'
+      - '(/logfile=|/logtoconsole=false)'
+  selection_6:
+    OriginalFileName: installutil.exe
+    CommandLine|re|i|all:
+      - '\s/u\b'
+      - '(/logfile=|/logtoconsole=false)'
+  selection_7:
+    Image|endswith: '\cmstp.exe'
+    CommandLine|re|i: '\s/au\b'
+  selection_8:
+    OriginalFileName: cmstp.exe
+    CommandLine|re|i: '\s/au\b'
+  selection_9:
+    Image|endswith: '\bitsadmin.exe'
+    CommandLine|re|i: '(/(transfer|addfile)\b.*https?://|/setnotifycmdline\b)'
+  selection_10:
+    OriginalFileName: bitsadmin.exe
+    CommandLine|re|i: '(/(transfer|addfile)\b.*https?://|/setnotifycmdline\b)'
+  selection_11:
+    Image|endswith: '\certutil.exe'
+    CommandLine|re|i: '(-urlcache\b.*https?://|-decode\b)'
+  selection_12:
+    OriginalFileName: certutil.exe
+    CommandLine|re|i: '(-urlcache\b.*https?://|-decode\b)'
+  selection_13:
+    Image|endswith: '\rundll32.exe'
+    CommandLine|re|i: '(javascript:|vbscript:|mshtml[, ]+runhtmlapplication)'
+  selection_14:
+    OriginalFileName: rundll32.exe
+    CommandLine|re|i: '(javascript:|vbscript:|mshtml[, ]+runhtmlapplication)'
+  selection_15:
+    Image|endswith: '\wmic.exe'
+    CommandLine|re|i: '/format:\s*[\x22\x27]?(https?://|\S+\.xsl)'
+  selection_16:
+    OriginalFileName: wmic.exe
+    CommandLine|re|i: '/format:\s*[\x22\x27]?(https?://|\S+\.xsl)'
+  condition: 'selection_1 or selection_2 or selection_3 or selection_4 or selection_5 or selection_6 or selection_7 or selection_8 or selection_9 or selection_10 or selection_11 or selection_12 or selection_13 or selection_14 or selection_15 or selection_16'
+falsepositives:
+  - 'Update tools that use bitsadmin or certutil; some legacy login scripts that use mshta.'
+  - 'Known benign source at the lab site, not part of this export: The software-update service uses bitsadmin to fetch packages from the internal repository (ticket IT-2288). Pinned to this account, this tool AND the internal address, so a download from anywhere else is still caught.'
+level: high

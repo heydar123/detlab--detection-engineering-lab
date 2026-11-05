@@ -1,0 +1,27 @@
+title: 'Service installed that runs a shell, a script host, or a file from an admin share'
+id: '7ca7982c-7e95-5668-addd-709af68292bc'
+name: detlab_det_012
+status: experimental
+description: 'A Windows service was installed whose command is a command shell, PowerShell, a script host, a file in a temporary or user folder, or a file on an admin share. This is how PsExec, SMBExec and similar tools run code on another machine: they copy a file or a command to the target and register it as a service. Ordinary software installs services that point into Program Files or System32 drivers.'
+author: 'Detection Lab'
+date: '2026-11-04'
+tags:
+  - attack.lateral-movement
+  - attack.t1021.002
+  - attack.t1543.003
+  - attack.t1569.002
+logsource:
+  product: windows
+  service: security
+detection:
+  selection_1:
+    EventID: 4697
+    ServiceFileName|re|i: '(%comspec%|\bcmd(\.exe)?[\x22\x27]?\s+/[ck]\b|powershell|pwsh|mshta|wscript|cscript|rundll32|regsvr32|\\\\[^\\]+\\(admin|c|ipc)\$|\\(temp|appdata|programdata)\\|\\users\\public\\)'
+  selection_2:
+    EventID: 4697
+    ServiceName|re|i: '^(psexe(c|sv)|paexec|remcom|csexec)'
+  condition: 'selection_1 or selection_2'
+falsepositives:
+  - 'Patch and deployment tools that stage a service in a temp folder; some vendor installers.'
+  - 'Known benign source at the lab site, not part of this export: The patch-management agent installs short-lived services from its own temp folder during the Tuesday maintenance window (ticket CHG-2307). Pinned to this account and host.'
+level: high

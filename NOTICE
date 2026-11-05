@@ -1,0 +1,63 @@
+detlab - third-party material
+
+The detlab code and documents are released under the MIT license (see LICENSE). This repository also contains, or its
+tools use, the material below from other people. It is not covered by detlab's license: each item keeps its own terms.
+
+------------------------------------------------------------------------------------------------------------------
+1. OTRF Security-Datasets (Mordor): the attack recordings in replay/otrf-datasets.zip
+
+   Source:   https://github.com/OTRF/Security-Datasets
+   Version:  commit d9d40ef123d2c87d5d3df28c96bcab4f0faccc87
+   Files:    26 recordings, kept exactly as published (their checksums are in replay/manifest.yml)
+   Note:     The README text of that repository still says GPL. Its LICENSE file is MIT, and the LICENSE file is
+             what applies. The license text at that commit follows.
+
+   MIT License
+
+   Copyright (c) 2021 Open Threat Research Forge
+
+   Permission is hereby granted, free of charge, to any person obtaining a copy
+   of this software and associated documentation files (the "Software"), to deal
+   in the Software without restriction, including without limitation the rights
+   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the Software is
+   furnished to do so, subject to the following conditions:
+
+   The above copyright notice and this permission notice shall be included in all
+   copies or substantial portions of the Software.
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE.
+
+------------------------------------------------------------------------------------------------------------------
+2. MITRE ATT&CK Enterprise data: detlab/data/attack.json
+
+   A reduced copy of the ATT&CK Enterprise data (version 20.0), made by tools/build_attack_data.py. The checksum of
+   the original file is stored inside it. The notice that MITRE requires:
+
+   "Copyright 2015-2026, The MITRE Corporation. MITRE ATT&CK and ATT&CK are registered trademarks of The MITRE
+   Corporation. This file is a reduced copy of the ATT&CK Enterprise data, used under the ATT&CK Terms of Use:
+   https://attack.mitre.org/resources/legal-and-branding/terms-of-use/"
+
+------------------------------------------------------------------------------------------------------------------
+3. PyYAML: detlab/_vendor/yaml/
+
+   A bundled copy of the pure-Python part of PyYAML 6.0.3, so that nothing has to be installed or compiled. It is used
+   only when no PyYAML is installed. Its MIT license is in detlab/_vendor/yaml/LICENSE
+   (Copyright (c) 2017-2021 Ingy döt Net, Copyright (c) 2006-2016 Kirill Simonov).
+
+------------------------------------------------------------------------------------------------------------------
+4. Ideas and lists, not code
+
+   - The list of the short spellings of PowerShell's -EncodedCommand in rule DET-004 follows the list published by
+     TrustedSec. It was not independently tested on a live host.
+   - The Sigma files in sigma/ follow the Sigma rule format (https://sigmahq.io). The Splunk and Microsoft Sentinel
+     queries in sigma/queries/ were made from them with pySigma and its Splunk and Kusto backends. Those tools were
+     used to make the files and are not included here.
+   - The web page was scanned for accessibility problems with axe-core. That tool was used to check the page and is
+     not included here.

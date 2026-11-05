@@ -1,0 +1,7 @@
+# DET-026 query 1
+source="WinEventLog:Security" EventCode=4624 LogonType=3
+
+| bin _time span=15m
+| stats dc(Computer) as value_count by _time TargetUserName IpAddress
+
+| search value_count >= 8

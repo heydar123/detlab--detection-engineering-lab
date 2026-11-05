@@ -1,0 +1,7 @@
+# Keep every text file's line endings as LF, on every system.
+# Some checks compare files byte for byte or by hash (the Splunk and Sentinel queries in sigma/queries, the generated
+# documents, replay/manifest.yml). Without this file, Git on Windows turns LF into CRLF when the project is cloned
+# and those checks report edits that nobody made.
+* text=auto eol=lf
+*.zip binary
+*.png binary

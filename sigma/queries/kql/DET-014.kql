@@ -1,0 +1,3 @@
+-- DET-014 query 1
+DeviceRegistryEvents
+| where RegistryKey matches regex "(?i)\\\\software\\\\(wow6432node\\\\)?microsoft\\\\windows\\\\currentversion\\\\(run|runonce)\\\\[^\\\\]+$" and RegistryValueData matches regex "(?i)(powershell|cmd(\\.exe)?[\\x22\\x27]?\\s+/[ck]|wscript|cscript|mshta|regsvr32|rundll32|\\\\(appdata|temp|programdata)\\\\|\\\\users\\\\public\\\\|https?://|\\s-enc)"

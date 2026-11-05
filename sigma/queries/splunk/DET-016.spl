@@ -1,0 +1,39 @@
+# DET-016 query 1
+source="WinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=1
+| rex field=CommandLine "(?<CommandLineMatch>(?i)(https?://|\\.hta\\b|\\.sct\\b|javascript:|vbscript:))"
+| eval CommandLineCondition=if(isnotnull(CommandLineMatch), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch2>(?i)(https?://|\\.hta\\b|\\.sct\\b|javascript:|vbscript:))"
+| eval CommandLineCondition2=if(isnotnull(CommandLineMatch2), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch3>(?i)(scrobj\\.dll|/i:\\S*(https?://|\\.sct)))"
+| eval CommandLineCondition3=if(isnotnull(CommandLineMatch3), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch4>(?i)(scrobj\\.dll|/i:\\S*(https?://|\\.sct)))"
+| eval CommandLineCondition4=if(isnotnull(CommandLineMatch4), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch5>(?i)\\s/u\\b)"
+| eval CommandLineCondition5=if(isnotnull(CommandLineMatch5), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch6>(?i)(/logfile=|/logtoconsole=false))"
+| eval CommandLineCondition6=if(isnotnull(CommandLineMatch6), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch7>(?i)\\s/u\\b)"
+| eval CommandLineCondition7=if(isnotnull(CommandLineMatch7), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch8>(?i)(/logfile=|/logtoconsole=false))"
+| eval CommandLineCondition8=if(isnotnull(CommandLineMatch8), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch9>(?i)\\s/au\\b)"
+| eval CommandLineCondition9=if(isnotnull(CommandLineMatch9), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch10>(?i)\\s/au\\b)"
+| eval CommandLineCondition10=if(isnotnull(CommandLineMatch10), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch11>(?i)(/(transfer|addfile)\\b.*https?://|/setnotifycmdline\\b))"
+| eval CommandLineCondition11=if(isnotnull(CommandLineMatch11), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch12>(?i)(/(transfer|addfile)\\b.*https?://|/setnotifycmdline\\b))"
+| eval CommandLineCondition12=if(isnotnull(CommandLineMatch12), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch13>(?i)(-urlcache\\b.*https?://|-decode\\b))"
+| eval CommandLineCondition13=if(isnotnull(CommandLineMatch13), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch14>(?i)(-urlcache\\b.*https?://|-decode\\b))"
+| eval CommandLineCondition14=if(isnotnull(CommandLineMatch14), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch15>(?i)(javascript:|vbscript:|mshtml[, ]+runhtmlapplication))"
+| eval CommandLineCondition15=if(isnotnull(CommandLineMatch15), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch16>(?i)(javascript:|vbscript:|mshtml[, ]+runhtmlapplication))"
+| eval CommandLineCondition16=if(isnotnull(CommandLineMatch16), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch17>(?i)/format:\\s*[\\x22\\x27]?(https?://|\\S+\\.xsl))"
+| eval CommandLineCondition17=if(isnotnull(CommandLineMatch17), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch18>(?i)/format:\\s*[\\x22\\x27]?(https?://|\\S+\\.xsl))"
+| eval CommandLineCondition18=if(isnotnull(CommandLineMatch18), "true", "false")
+| search ((Image="*\\mshta.exe" CommandLineCondition="true") OR (OriginalFileName="mshta.exe" CommandLineCondition2="true") OR (Image="*\\regsvr32.exe" CommandLineCondition3="true") OR (OriginalFileName="regsvr32.exe" CommandLineCondition4="true") OR (Image="*\\installutil.exe" CommandLineCondition5="true" CommandLineCondition6="true") OR (OriginalFileName="installutil.exe" CommandLineCondition7="true" CommandLineCondition8="true") OR (Image="*\\cmstp.exe" CommandLineCondition9="true") OR (OriginalFileName="cmstp.exe" CommandLineCondition10="true") OR (Image="*\\bitsadmin.exe" CommandLineCondition11="true") OR (OriginalFileName="bitsadmin.exe" CommandLineCondition12="true") OR (Image="*\\certutil.exe" CommandLineCondition13="true") OR (OriginalFileName="certutil.exe" CommandLineCondition14="true") OR (Image="*\\rundll32.exe" CommandLineCondition15="true") OR (OriginalFileName="rundll32.exe" CommandLineCondition16="true") OR (Image="*\\wmic.exe" CommandLineCondition17="true") OR (OriginalFileName="wmic.exe" CommandLineCondition18="true"))

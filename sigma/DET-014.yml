@@ -1,0 +1,22 @@
+title: 'Startup (Run key) entry pointing at a script, shell, or user-folder file'
+id: acc7a1c4-b607-58fb-af69-ac2748ba6908
+name: detlab_det_014
+status: experimental
+description: 'A value was written to a Run or RunOnce registry key (programs listed there start at every sign-in) and the value runs PowerShell, a command shell, a script host, a web address, or a file in a temporary or user folder. This is one of the oldest ways to survive a reboot. The key name is matched exactly, so keys that only look similar (RunTime, RunsBlocked, RunAs) are ignored.'
+author: 'Detection Lab'
+date: '2026-11-04'
+tags:
+  - attack.persistence
+  - attack.t1547.001
+logsource:
+  category: registry_set
+  product: windows
+detection:
+  selection_1:
+    TargetObject|re|i: '\\software\\(wow6432node\\)?microsoft\\windows\\currentversion\\(run|runonce)\\[^\\]+$'
+    Details|re|i: '(powershell|cmd(\.exe)?[\x22\x27]?\s+/[ck]|wscript|cscript|mshta|regsvr32|rundll32|\\(appdata|temp|programdata)\\|\\users\\public\\|https?://|\s-enc)'
+  condition: selection_1
+falsepositives:
+  - 'Per-user applications that start at sign-in from AppData (Teams, OneDrive, chat clients).'
+  - 'Known benign source at the lab site, not part of this export: The Teams client registers itself to start at sign-in from its own folder. Matched on the writing program AND the full program path, so another program writing the same value is still caught.'
+level: high

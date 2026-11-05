@@ -1,0 +1,7 @@
+-- DET-019 query 1
+SecurityEvent
+| where EventID == 4720
+
+-- DET-019 query 2
+DeviceProcessEvents
+| where (((FolderPath endswith "\\net.exe" or FolderPath endswith "\\net1.exe") and (ProcessCommandLine matches regex "(?i)\\buser\\b" and ProcessCommandLine matches regex "(?i)\\s/add\\b")) and (not(ProcessCommandLine matches regex "(?i)\\b(localgroup|group)\\b"))) or (((ProcessVersionInfoOriginalFileName in~ ("net.exe", "net1.exe")) and (ProcessCommandLine matches regex "(?i)\\buser\\b" and ProcessCommandLine matches regex "(?i)\\s/add\\b")) and (not(ProcessCommandLine matches regex "(?i)\\b(localgroup|group)\\b")))

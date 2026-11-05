@@ -1,0 +1,62 @@
+id: DET-006
+title: Privileged group membership change by an unapproved account
+status: stable
+severity: critical
+attack:
+  tactic: Persistence
+  technique: T1098
+  technique_name: Account Manipulation
+description: >
+  An account is added to a privileged group (Domain Admins, Enterprise Admins,
+  Schema Admins, Administrators, or the Account, Backup, or Server Operators
+  groups) by anyone other than the approved admin account. Attackers add
+  themselves or a backdoor account to a privileged group once they have a
+  foothold. The first version of this rule only watched three of these groups
+  and missed Backup Operators until the red-team test (EV-04) caught it.
+type: match
+filter:
+  action: group_add
+  group|in: [Domain Admins, Enterprise Admins, Schema Admins, Administrators, Account Operators, Backup Operators, Server Operators]
+entity_fields: [user, target_user, group]
+exclusions:
+  - match:
+      user: it.admin
+    reason: Approved admin account making ticketed changes (CHG-2231). Tradeoff - this blinds the rule if it.admin is itself compromised, so also alert on it.admin outside change windows.
+false_positives: >
+  Planned admin changes, new IT staff onboarding, break-glass access.
+triage:
+  - Was there a change ticket? Who approved it?
+  - Is the actor the same account being added (self-escalation)?
+  - What did the actor do in the hour before the change?
+response:
+  - Remove the unapproved membership and disable the actor account if it is not legitimate.
+  - Review all actions taken with the elevated rights since the change.
+  - Reset credentials for any privileged account that may have been exposed.
+tests:
+  - name: an account adding itself to Domain Admins fires
+    expect: fire
+    events:
+      - {action: group_add, user: d.okafor, target_user: d.okafor, group: Domain Admins, host: DC-01}
+  - name: adding oneself to Backup Operators fires (found by the red team as EV-04)
+    expect: fire
+    events:
+      - {action: group_add, user: j.smith, target_user: j.smith, group: Backup Operators, host: DC-01}
+  - name: the approved admin making a ticketed change is excluded
+    expect: no_fire
+    events:
+      - {action: group_add, user: it.admin, target_user: svc_patch, group: Administrators, host: SRV-FILE-01}
+  - name: a change to an ordinary group stays quiet
+    expect: no_fire
+    events:
+      - {action: group_add, user: j.smith, target_user: m.garcia, group: VPN-Users, host: SRV-IAM-01}
+  - name: every protected group raises its own alert
+    expect: fire
+    alerts: 7
+    events:
+      - {action: group_add, user: j.smith, target_user: j.smith, group: Domain Admins, host: DC-01}
+      - {action: group_add, user: j.smith, target_user: j.smith, group: Enterprise Admins, host: DC-01}
+      - {action: group_add, user: j.smith, target_user: j.smith, group: Schema Admins, host: DC-01}
+      - {action: group_add, user: j.smith, target_user: j.smith, group: Administrators, host: DC-01}
+      - {action: group_add, user: j.smith, target_user: j.smith, group: Account Operators, host: DC-01}
+      - {action: group_add, user: j.smith, target_user: j.smith, group: Backup Operators, host: DC-01}
+      - {action: group_add, user: j.smith, target_user: j.smith, group: Server Operators, host: DC-01}

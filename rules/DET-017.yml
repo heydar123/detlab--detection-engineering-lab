@@ -1,0 +1,110 @@
+id: DET-017
+title: Event log cleared or audit policy weakened
+status: experimental
+severity: high
+attack:
+  tactic: Defense Impairment
+  technique: T1685.005
+  technique_name: Clear Windows Event Logs
+  also: [T1685.001]
+description: >
+  A Windows event log was cleared, auditing was turned down, or someone ran the command-line tools that do
+  those things (wevtutil to clear or disable a log, auditpol to clear or disable audit settings). Attackers do
+  this after they get in so the evidence of what they did is gone. There is almost never a good reason to do
+  it outside of a planned, documented rotation job, which is handled with a narrow exclusion.
+type: match
+filter:
+  - action: log_clear
+  - action: audit_policy_change
+  - action: process_create
+    process_name,original_name: wevtutil.exe
+    command_line|regex: '(?i)(\s(cl|clear-log)\s|\s(sl|set-log)\s.*(/lfn:|/logfilename:|/e:false))'
+  - action: process_create
+    process_name,original_name: auditpol.exe
+    command_line|regex: '(?i)(/clear|/remove|/set\b.*/(success|failure):disable)'
+entity_fields: [user, host]
+suppress_seconds: 300
+exclusions:
+  - match:
+      user: svc_logrotate
+      host: SRV-LOG-01
+      log_name: Application
+    reason: The weekly log rotation job exports the Application log and then clears it on the log server (ticket IT-2310). Pinned to this account, this host AND the Application log only.
+  - match:
+      user: svc_logrotate
+      host: SRV-LOG-01
+      process_name: wevtutil.exe
+      command_line|regex: '(?i)\scl\s+application\s*$'
+    reason: The command-line side of the same weekly rotation job. Only clearing the Application log is covered, so clearing Security with this account still alerts.
+false_positives: >
+  Planned log rotation jobs, lab machines that are rebuilt often, and administrators who clear logs while
+  troubleshooting. On the real lab datasets, many attack captures start by clearing the logs, so this rule
+  also fires there (see docs/replay-results.md).
+triage:
+  - Which log was cleared, by which account, from which program or session?
+  - Was there a change ticket or a rotation job for this host at this time?
+  - What else happened on this host in the 30 minutes before the clear? (See the case timeline.)
+response:
+  - Treat an unexplained clear as a sign of an intrusion until shown otherwise.
+  - Collect copies of logs from a central log store, since the local ones are gone.
+  - Check what the same account did on other hosts.
+tests:
+  - name: clearing the Security log fires
+    expect: fire
+    events:
+      - {action: log_clear, user: wardog, host: WS-005, log_name: Security}
+  - name: wevtutil clear-log fires
+    expect: fire
+    events:
+      - {action: process_create, user: wardog, host: WS-005, process_name: wevtutil.exe, parent_process: cmd.exe, command_line: 'wevtutil cl Security'}
+  - name: wevtutil turning a log off fires
+    expect: fire
+    events:
+      - {action: process_create, user: wardog, host: WS-005, process_name: wevtutil.exe, parent_process: cmd.exe, command_line: 'wevtutil sl Microsoft-Windows-PowerShell/Operational /e:false'}
+  - name: auditpol clearing the audit policy fires
+    expect: fire
+    events:
+      - {action: process_create, user: wardog, host: WS-005, process_name: auditpol.exe, parent_process: cmd.exe, command_line: 'auditpol /clear /y'}
+  - name: auditpol disabling success auditing fires
+    expect: fire
+    events:
+      - {action: process_create, user: wardog, host: WS-005, process_name: auditpol.exe, parent_process: cmd.exe, command_line: 'auditpol /set /category:"Account Logon" /success:disable /failure:disable'}
+  - name: an audit policy change event fires
+    expect: fire
+    events:
+      - {action: audit_policy_change, user: SYSTEM, host: DC-01, subcategory: Logon, audit_changes: 'Success removed'}
+  - name: wevtutil only reading events stays quiet
+    expect: no_fire
+    events:
+      - {action: process_create, user: it.admin, host: WS-001, process_name: wevtutil.exe, parent_process: cmd.exe, command_line: 'wevtutil qe Security /c:5 /f:text'}
+  - name: auditpol only reading the policy stays quiet
+    expect: no_fire
+    events:
+      - {action: process_create, user: it.admin, host: WS-001, process_name: auditpol.exe, parent_process: cmd.exe, command_line: 'auditpol /get /category:*'}
+  - name: the weekly rotation job clearing Application is excluded (both events)
+    expect: no_fire
+    events:
+      - {action: process_create, user: svc_logrotate, host: SRV-LOG-01, process_name: wevtutil.exe, parent_process: powershell.exe, command_line: 'wevtutil cl Application'}
+      - {action: log_clear, user: svc_logrotate, host: SRV-LOG-01, log_name: Application}
+  - name: the rotation account clearing Security still fires
+    expect: fire
+    events:
+      - {action: process_create, user: svc_logrotate, host: SRV-LOG-01, process_name: wevtutil.exe, parent_process: powershell.exe, command_line: 'wevtutil cl Security'}
+  - name: the rotation account clearing Application on another host still fires
+    expect: fire
+    events:
+      - {action: log_clear, user: svc_logrotate, host: WS-005, log_name: Application}
+  - name: a renamed copy of wevtutil.exe is still caught through its original file name
+    expect: fire
+    events:
+      - {action: process_create, user: wardog, host: WS-005, process_name: w.exe, original_name: wevtutil.exe, parent_process: cmd.exe, command_line: 'w.exe cl Security'}
+  - name: the same words typed into another program do not count
+    expect: no_fire
+    events:
+      - {action: process_create, user: k.lee, host: WS-004, process_name: notepad.exe, parent_process: explorer.exe, command_line: 'notepad.exe notes about wevtutil cl Security'}
+      - {action: process_create, user: k.lee, host: WS-004, process_name: notepad.exe, parent_process: explorer.exe, command_line: 'notepad.exe notes about auditpol /clear'}
+  - name: the same event three times in a row is folded into one alert (repeats are throttled, not paged again)
+    expect: fire
+    alerts: 1
+    events:
+      - {action: log_clear, user: wardog, host: WS-005, log_name: Security, repeat: 3, every: 10s}

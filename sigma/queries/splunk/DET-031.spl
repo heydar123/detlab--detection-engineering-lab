@@ -1,0 +1,3 @@
+# DET-031 query 1
+source="WinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=11
+| regex TargetFilename="(?i)\\\\start menu\\\\programs\\\\startup\\\\[^\\\\]+\\.(lnk|exe|dll|bat|cmd|vbs|vbe|js|jse|wsf|hta|ps1|scr)$"

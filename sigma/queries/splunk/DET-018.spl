@@ -1,0 +1,27 @@
+# DET-018 query 1
+source="WinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=1
+| rex field=CommandLine "(?<CommandLineMatch>(?i)advfirewall\\s+firewall\\s+add\\s+rule)"
+| eval CommandLineCondition=if(isnotnull(CommandLineMatch), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch2>(?i)dir=in\\b)"
+| eval CommandLineCondition2=if(isnotnull(CommandLineMatch2), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch3>(?i)action=allow)"
+| eval CommandLineCondition3=if(isnotnull(CommandLineMatch3), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch4>(?i)advfirewall\\s+set\\s+\\S+\\s+state\\s+off)"
+| eval CommandLineCondition4=if(isnotnull(CommandLineMatch4), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch5>(?i)firewall\\s+set\\s+opmode\\s+(mode=)?disable)"
+| eval CommandLineCondition5=if(isnotnull(CommandLineMatch5), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch6>(?i)interface\\s+portproxy\\s+add)"
+| eval CommandLineCondition6=if(isnotnull(CommandLineMatch6), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch7>(?i)advfirewall\\s+firewall\\s+add\\s+rule)"
+| eval CommandLineCondition7=if(isnotnull(CommandLineMatch7), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch8>(?i)dir=in\\b)"
+| eval CommandLineCondition8=if(isnotnull(CommandLineMatch8), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch9>(?i)action=allow)"
+| eval CommandLineCondition9=if(isnotnull(CommandLineMatch9), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch10>(?i)advfirewall\\s+set\\s+\\S+\\s+state\\s+off)"
+| eval CommandLineCondition10=if(isnotnull(CommandLineMatch10), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch11>(?i)firewall\\s+set\\s+opmode\\s+(mode=)?disable)"
+| eval CommandLineCondition11=if(isnotnull(CommandLineMatch11), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch12>(?i)interface\\s+portproxy\\s+add)"
+| eval CommandLineCondition12=if(isnotnull(CommandLineMatch12), "true", "false")
+| search ((Image="*\\netsh.exe" CommandLineCondition="true" CommandLineCondition2="true" CommandLineCondition3="true") OR (Image="*\\netsh.exe" CommandLineCondition4="true") OR (Image="*\\netsh.exe" CommandLineCondition5="true") OR (Image="*\\netsh.exe" CommandLineCondition6="true") OR (OriginalFileName="netsh.exe" CommandLineCondition7="true" CommandLineCondition8="true" CommandLineCondition9="true") OR (OriginalFileName="netsh.exe" CommandLineCondition10="true") OR (OriginalFileName="netsh.exe" CommandLineCondition11="true") OR (OriginalFileName="netsh.exe" CommandLineCondition12="true"))

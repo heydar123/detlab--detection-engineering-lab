@@ -1,0 +1,86 @@
+id: DET-028
+title: Slow brute force - 40 failed logins for one account from one source in an hour
+status: experimental
+severity: medium
+attack:
+  tactic: Credential Access
+  technique: T1110.001
+  technique_name: Password Guessing
+description: >
+  The companion to DET-001. DET-001 watches for 20 failures in 5 minutes. An attacker who knows that sends
+  small bursts with pauses (EV-01, 60 failures in four bursts), and never reaches 20 in any 5 minute window.
+  This rule adds up the failures over a full hour instead, with a higher threshold so that ordinary typos do not
+  trigger it. It was written after the red team test showed the gap, and is measured against the same
+  noise as DET-001.
+type: threshold
+filter:
+  action: login
+  outcome: failure
+group_by: [src_ip, user]
+window_seconds: 3600
+threshold: 40
+exclusions:
+  - match:
+      src_ip: 10.0.5.50
+    reason: Approved weekly vulnerability scanner (change ticket SEC-1042). Same reason and review date as the exclusion in DET-001.
+false_positives: >
+  Scanners, services with an old stored password, users hammering a locked account.
+triage:
+  - Is the source internal or external? Check reputation and country.
+  - Did a success follow the failures for the same account (see DET-005)?
+  - Is the account privileged or a service account?
+response:
+  - Block or rate-limit the source at the edge.
+  - If a success followed, reset the credentials and revoke sessions.
+  - Require MFA on the service being attacked.
+tests:
+  - name: 60 failures in four bursts of 15 over 45 minutes fire
+    expect: fire
+    events:
+      - {action: login, outcome: failure, user: t.brown, src_ip: 203.0.113.201, country: VN, service: rdp, repeat: 15, every: 10s}
+      - {action: login, outcome: failure, user: t.brown, src_ip: 203.0.113.201, country: VN, service: rdp, repeat: 15, every: 10s, at: 15m}
+      - {action: login, outcome: failure, user: t.brown, src_ip: 203.0.113.201, country: VN, service: rdp, repeat: 15, every: 10s, at: 30m}
+      - {action: login, outcome: failure, user: t.brown, src_ip: 203.0.113.201, country: VN, service: rdp, repeat: 15, every: 10s, at: 45m}
+  - name: exactly 40 failures inside the hour fire (the threshold itself counts)
+    expect: fire
+    events:
+      - {action: login, outcome: failure, user: t.brown, src_ip: 203.0.113.201, service: rdp, repeat: 40, every: 85s}
+  - name: 39 failures inside the hour stay under the threshold
+    expect: no_fire
+    events:
+      - {action: login, outcome: failure, user: t.brown, src_ip: 203.0.113.201, service: rdp, repeat: 39, every: 85s}
+  - name: the same 60 failures spread over 4 hours stay quiet
+    expect: no_fire
+    events:
+      - {action: login, outcome: failure, user: t.brown, src_ip: 203.0.113.201, service: rdp, repeat: 60, every: 4m}
+  - name: failures against different accounts do not add up (that is spraying)
+    expect: no_fire
+    events:
+      - {action: login, outcome: failure, user: 'user{i}', src_ip: 203.0.113.201, service: rdp, repeat: 60, every: 30s}
+  - name: the approved scanner is excluded
+    expect: no_fire
+    events:
+      - {action: login, outcome: failure, user: svc_backup, src_ip: 10.0.5.50, service: ssh, repeat: 60, every: 10s}
+  - name: the same failures from another address still fire
+    expect: fire
+    events:
+      - {action: login, outcome: failure, user: svc_backup, src_ip: 203.0.113.201, service: ssh, repeat: 60, every: 10s}
+  - name: 45 successful logins in an hour are ordinary
+    expect: no_fire
+    events:
+      - {action: login, outcome: success, user: a.nguyen, src_ip: 198.51.100.20, country: US, service: o365, repeat: 45, every: 60s}
+  - name: 40 failures from the first to the last exactly one hour apart still fire (the window edge counts)
+    expect: fire
+    events:
+      - {action: login, outcome: failure, user: t.brown, src_ip: 203.0.113.201, service: rdp, repeat: 39, every: 1s}
+      - {at: 3600s, action: login, outcome: failure, user: t.brown, src_ip: 203.0.113.201, service: rdp}
+  - name: the same 40 failures with the last one a second later are outside the window
+    expect: no_fire
+    events:
+      - {action: login, outcome: failure, user: t.brown, src_ip: 203.0.113.201, service: rdp, repeat: 39, every: 1s}
+      - {at: 3601s, action: login, outcome: failure, user: t.brown, src_ip: 203.0.113.201, service: rdp}
+  - name: failures against one account from two addresses are counted per address (20 each stays quiet)
+    expect: no_fire
+    events:
+      - {action: login, outcome: failure, user: t.brown, src_ip: 203.0.113.201, service: rdp, repeat: 20, every: 10s}
+      - {action: login, outcome: failure, user: t.brown, src_ip: 203.0.113.202, service: rdp, repeat: 20, every: 10s}

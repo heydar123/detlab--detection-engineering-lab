@@ -1,0 +1,233 @@
+# Which events are "the attack" in each recording.
+#
+# An alert is labeled "attack" when at least one of its evidence events matches the dataset's `attack` filter,
+# and "other" when none does. A dataset without an entry here is "unlabeled".
+#
+# How these labels are written (the rules were fixed before any holdout dataset was run):
+#   1. An event is "attack" when it belongs to the technique that the dataset is named for: the program, the
+#      command, the registry change or the directory request that carries it out.
+#   2. Programs started by the attacker's tool chain count too (for example the commands that an Empire agent
+#      runs through powershell.exe).
+#   3. Anything else in the recording is "other": clearing logs before the test starts, or the side effect of a
+#      harmless command. "Other" does not mean the alert is wrong. It means the alert does not point at the
+#      recorded attack.
+#   4. A filter names programs or commands. It never copies the match logic of the rule that raised the alert.
+#   5. Labels for the holdout datasets are added only AFTER `replay --split holdout --freeze` has stored the
+#      first run, and they follow the same four rules. Labels are one reviewer's judgment, not ground truth.
+#
+# The `why` text is shown next to the dataset in the reports.
+#
+# `result_notes` explain, after the fact, why an expected rule missed or could not be tested in a recording.
+# They are the author's reading of the recording, written after the results were known, and they never change what a
+# rule was expected to do (that stays in manifest.yml).
+
+# Rules that were changed AFTER the first holdout run was stored, and why. Every rule listed here differs from the
+# frozen version (`replay --split holdout` shows the same list). The first-run numbers stay on record unchanged.
+changes_after_first_run:
+  DET-009: >
+    The first run raised one alert on the Azure guest agent (CollectGuestLogs.exe), which lists the processes on the
+    machine and opens lsass.exe with read access. An exclusion was added, pinned to the program name, its install
+    folder and the exact access mask (0x1410). The same behaviour through PowerShell remoting still alerts, on
+    purpose, because remoting is also how Invoke-Mimikatz is run.
+  DET-015: >
+    The first run missed the fodhelper recording. Windows logged the registry key under the HKU\<SID>_Classes name
+    and the first pattern only knew the HKCU\Software\Classes name. The pattern now reads both. This turned a real
+    miss into a hit, so the current holdout result is better than the first run, and both are reported.
+
+datasets:
+  cmd_dumping_ntds_dit_file_ntdsutil:
+    why: >
+      The test runs ntdsutil to copy the Active Directory database ("ifm" "create full"). The System log was
+      cleared 80 seconds before that and the dataset description does not list it as part of the technique.
+    attack:
+      - {action: process_create, "process_name,original_name": ntdsutil.exe}
+
+  cmd_netsh_fw_mod_open_ports:
+    why: >
+      The test adds a firewall rule with netsh. The Security log was cleared a few seconds before the test
+      and that is not part of the technique.
+    attack:
+      - {action: process_create, "process_name,original_name": netsh.exe}
+
+  cmd_wevtutil_modify_security_eventlog_path:
+    why: The test moves the Security log file with wevtutil. That command is the attack.
+    attack:
+      - {action: process_create, "process_name,original_name": wevtutil.exe}
+
+  covenant_dcsync_dcerpc_drsuapi_DsGetNCChanges:
+    why: The Covenant implant asks the domain controller to replicate password data as the user pgustavo.
+    attack:
+      - {action: directory_access, user: pgustavo}
+
+  covenant_psremoting_command:
+    why: >
+      The Covenant task runs "get-process" on WORKSTATION6 through PowerShell remoting. The attacker's action is
+      the remote command session (wsmprovhost.exe). Windows also opens lsass.exe with read rights when
+      Get-Process lists every process. That is a side effect of an administrative command and not credential
+      theft, so the LSASS alert in this recording is "other".
+    attack:
+      - {action: process_create, "process_name,original_name": wsmprovhost.exe}
+    result_notes:
+      DET-020: >
+        Missed. The start of the remoting session (wsmprovhost.exe) is in the recording, but the command Get-Process
+        ran inside that process and started no program of its own, so DET-020, which looks for programs started by
+        wsmprovhost.exe, has nothing to match. DET-032 was written afterwards for the session start. It is a
+        low-severity rule that adds context to a case. It does not see the command.
+
+  empire_launcher_sct_regsvr32:
+    why: >
+      An Empire launcher runs through regsvr32 and a remote .sct file, then starts the PowerShell agent.
+      Attack events are regsvr32, the PowerShell agent, and the Empire launcher script block.
+    attack:
+      - {"process_name,parent_process|in": [regsvr32.exe, powershell.exe]}
+      - {action: powershell_scriptblock, "script_text|contains": psversiontable}
+
+  empire_launcher_vbs:
+    why: >
+      An Empire launcher runs as a VBScript through wscript, then starts the PowerShell agent, which runs
+      whoami. Attack events are wscript, the PowerShell agent and its child programs, and the launcher script.
+    attack:
+      - {"process_name,parent_process|in": [wscript.exe, powershell.exe]}
+      - {action: powershell_scriptblock, "script_text|contains": psversiontable}
+
+  empire_mimikatz_logonpasswords:
+    why: The Empire agent runs whoami and then Mimikatz logonpasswords inside powershell.exe.
+    attack:
+      - {"process_name,parent_process|in": [powershell.exe]}
+    result_notes:
+      DET-021: >
+        Not testable. The recording has no PowerShell script block events, and those are the only events DET-021
+        reads. This says nothing about whether the rule works.
+
+  empire_persistence_registry_modification_run_keys_elevated_user:
+    why: The Empire agent writes a Run key value under HKLM from powershell.exe.
+    attack:
+      - {"process_name,parent_process|in": [powershell.exe]}
+
+  empire_shell_net_localgroup_administrators:
+    why: The Empire agent runs "net localgroup Administrators" from powershell.exe.
+    attack:
+      - {"process_name,parent_process|in": [powershell.exe]}
+
+  empire_wmi_dcerpc_wmi_IWbemServices_ExecMethod:
+    why: >
+      The Empire agent starts a PowerShell launcher through WMI. Attack events are WmiPrvSE and everything it
+      or the PowerShell agent starts, plus the launcher script.
+    attack:
+      - {"process_name,parent_process|in": [wmiprvse.exe, powershell.exe]}
+      - {action: powershell_scriptblock, "script_text|contains": psversiontable}
+
+  empire_wmic_add_user_backdoor:
+    why: The Empire agent runs wmic to start "net user /add backdoor" on WORKSTATION6 through WMI.
+    attack:
+      - {"process_name,original_name,parent_process|in": [wmic.exe, wmiprvse.exe, powershell.exe]}
+
+  psh_cmstp_execution_bypassuac:
+    why: >
+      The test runs cmstp.exe with a prepared .inf file to bypass UAC. The Security log was cleared a few
+      seconds earlier and that is not part of the technique.
+    attack:
+      - {action: process_create, "process_name,original_name": cmstp.exe}
+
+  psh_lsass_memory_dump_comsvcs:
+    why: >
+      The test runs rundll32 with comsvcs.dll MiniDump to write an LSASS memory dump. The Security log was
+      cleared 30 seconds earlier and that is not part of the technique.
+    attack:
+      - {"process_name,original_name": rundll32.exe}
+
+  # ---------------------------------------------------------------------------------------------------------------
+  # Holdout datasets. These labels were written AFTER the first holdout run was stored (replay/holdout-first-run.json)
+  # and follow the same four rules as above.
+  # ---------------------------------------------------------------------------------------------------------------
+
+  auditpol_system_user_auditpolicy_modification:
+    why: >
+      The test runs auditpol.exe over and over to switch off audit categories for one user. The System log was
+      cleared a little earlier and that is not part of the technique.
+    attack:
+      - {action: process_create, "process_name,original_name": auditpol.exe}
+
+  cmd_bitsadmin_download_psh_script:
+    why: The test downloads a script with bitsadmin. The Security log was cleared just before and that is not part of the technique.
+    attack:
+      - {action: process_create, "process_name,original_name": bitsadmin.exe}
+
+  cmd_lsass_memory_dumpert_syscalls:
+    why: The test runs the Outflank Dumpert tool, which reads LSASS memory. The Security log was cleared just before and that is not part of the technique.
+    attack:
+      - {process_name: Outflank-Dumpert.exe}
+
+  covenant_installutil:
+    why: The Covenant implant runs a payload through InstallUtil.exe.
+    attack:
+      - {action: process_create, "process_name,original_name": installutil.exe}
+
+  covenant_sharpsc_create_dcerpc_smb_svcctl:
+    why: SharpSC creates a service on WORKSTATION6 through the remote service control interface. The service runs the Covenant implant GruntHTTP2.exe.
+    attack:
+      - {action: service_install, service_name: Cyb3rWard0g}
+    result_notes:
+      DET-012: >
+        Missed, and left as a miss. The service is called Cyb3rWard0g and runs C:\Windows\System32\GruntHTTP2.exe, a
+        plain program path. DET-012 looks at what a service command is made of (shells, script hosts, temp folders,
+        admin shares, known tool names) and this one has none of that. Widening the rule to match this file would
+        only prove that a rule can be bent to fit one recording. What would close it: a rule for a service whose
+        program file was created a few minutes earlier, or a list of service names seen before.
+
+  empire_psexec_dcerpc_tcp_svcctl:
+    why: >
+      The Empire PsExec module installs a service called Updater that starts a PowerShell launcher. Attack events
+      are that service, the PowerShell agent with its child programs, and the launcher script.
+    attack:
+      - {action: service_install, service_name: Updater}
+      - {"process_name,parent_process|in": [powershell.exe]}
+      - {action: powershell_scriptblock, "script_text|contains": psversiontable}
+
+  empire_schtasks_creation_standard_user:
+    why: The Empire agent creates a scheduled task with schtasks.exe from powershell.exe.
+    attack:
+      - {"process_name,parent_process|in": [powershell.exe]}
+
+  empire_shell_net_local_users:
+    why: The Empire agent runs "net user" from powershell.exe.
+    attack:
+      - {"process_name,parent_process|in": [powershell.exe]}
+
+  empire_shell_reg_dump_sam:
+    why: The Empire agent runs "reg save HKLM\sam" from powershell.exe.
+    attack:
+      - {"process_name,parent_process|in": [powershell.exe]}
+
+  empire_smbexec_dcerpc_smb_svcctl:
+    why: >
+      The Empire SMBExec module installs a service with a random name that starts a PowerShell launcher. Attack
+      events are that service, the PowerShell agent with its child programs, and the launcher script.
+      The first run also raised a LSASS alert for the Azure guest agent (CollectGuestLogs.exe). That is a program
+      listing processes, not part of the attack (see first_run_only).
+    attack:
+      - {action: service_install, user: pgustavo}
+      - {"process_name,parent_process|in": [powershell.exe]}
+      - {action: powershell_scriptblock, "script_text|contains": psversiontable}
+    # Alerts that the rules raised in the stored first run but no longer raise after a fix made once the holdout
+    # results were known. They are labeled by hand here so the first-run numbers can still be reported.
+    first_run_only:
+      - {rule_id: DET-009, first_ts: "2020-09-20T06:58:01Z", label: other,
+         why: "The Azure guest agent listing processes opened lsass.exe with 0x1410. A narrow exclusion was added afterwards."}
+
+  empire_uac_shellapi_fodhelper:
+    why: >
+      The Empire agent plants a command under the ms-settings key, starts fodhelper.exe, and gets an elevated
+      PowerShell. Attack events are the PowerShell agent with its child programs, fodhelper.exe and the launcher script.
+    attack:
+      - {"process_name,parent_process|in": [powershell.exe, fodhelper.exe]}
+      - {action: powershell_scriptblock, "script_text|contains": psversiontable}
+
+  psh_mshta_html_application_execution:
+    why: >
+      The test writes an HTML application into the user's Startup folder with PowerShell and runs it with
+      mshta.exe. Writing the file is part of the setup of that run. The Security log was cleared just before and
+      that is not part of the technique.
+    attack:
+      - {action: process_create, "process_name,original_name": mshta.exe}
+      - {action: file_create, process_name: powershell.exe}

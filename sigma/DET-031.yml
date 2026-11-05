@@ -1,0 +1,21 @@
+title: 'Program, shortcut or script dropped into a Startup folder'
+id: b3bf5155-a3cd-50de-9830-f7953354df15
+name: detlab_det_031
+status: experimental
+description: 'A file that can run code (a shortcut, program, library, script or HTA page) was created inside a Windows Startup folder. Everything in that folder starts at sign-in, so it is the second most common place, after the Run registry keys (DET-014), where attackers leave something to survive a reboot. This rule was added after the red team test EV-10 showed that a Startup folder shortcut slipped past DET-014.'
+author: 'Detection Lab'
+date: '2026-11-04'
+tags:
+  - attack.persistence
+  - attack.t1547.001
+logsource:
+  category: file_event
+  product: windows
+detection:
+  selection_1:
+    TargetFilename|re|i: '\\start menu\\programs\\startup\\[^\\]+\.(lnk|exe|dll|bat|cmd|vbs|vbe|js|jse|wsf|hta|ps1|scr)$'
+  condition: selection_1
+falsepositives:
+  - 'Installers of tray applications that start at sign-in.'
+  - 'Known benign source at the lab site, not part of this export: The document-scanner software installs a tray icon shortcut for every user (ticket IT-2342). Pinned to the installer program AND the exact file name, so any other file in a Startup folder still alerts.'
+level: medium

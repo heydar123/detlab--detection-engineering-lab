@@ -1,0 +1,65 @@
+id: DET-012
+title: Service installed that runs a shell, a script host, or a file from an admin share
+status: experimental
+severity: high
+attack:
+  tactic: Lateral Movement
+  technique: T1021.002
+  technique_name: SMB/Windows Admin Shares
+  also: [T1543.003, T1569.002]
+description: >
+  A Windows service was installed whose command is a command shell, PowerShell, a script host, a
+  file in a temporary or user folder, or a file on an admin share. This is how PsExec, SMBExec and
+  similar tools run code on another machine: they copy a file or a command to the target and register
+  it as a service. Ordinary software installs services that point into Program Files or System32 drivers.
+type: match
+filter:
+  - action: service_install
+    service_path|regex: '(?i)(%comspec%|\bcmd(\.exe)?[\x22\x27]?\s+/[ck]\b|powershell|pwsh|mshta|wscript|cscript|rundll32|regsvr32|\\\\[^\\]+\\(admin|c|ipc)\$|\\(temp|appdata|programdata)\\|\\users\\public\\)'
+  - action: service_install
+    service_name|regex: '(?i)^(psexe(c|sv)|paexec|remcom|csexec)'
+entity_fields: [host, service_name, user]
+exclusions:
+  - match:
+      user: svc_patch
+      host: SRV-PATCH-01
+    reason: The patch-management agent installs short-lived services from its own temp folder during the Tuesday maintenance window (ticket CHG-2307). Pinned to this account and host.
+false_positives: >
+  Patch and deployment tools that stage a service in a temp folder; some vendor installers.
+triage:
+  - What does the service command do? Decode or read any script it points to.
+  - Which account installed it, and from which source address was the remote session made?
+  - Was the same service installed on several machines in a short time (lateral movement)?
+response:
+  - Stop and remove the service, and isolate the host if the command is not recognised.
+  - Find the source host and account of the remote session and treat that account as compromised.
+  - Hunt for the same service name or command across the fleet.
+tests:
+  - name: a PsExec service fires
+    expect: fire
+    events:
+      - {action: service_install, user: pgustavo, host: WS-006, service_name: PSEXESVC, service_path: '%SystemRoot%\PSEXESVC.exe'}
+  - name: a service that runs a command through COMSPEC fires (SMBExec style)
+    expect: fire
+    events:
+      - {action: service_install, user: pgustavo, host: WS-006, service_name: BTOBTO, service_path: '%COMSPEC% /Q /c echo whoami ^> \\127.0.0.1\C$\__output 2^>^&1 > %TEMP%\execute.bat'}
+  - name: a service that runs cmd /c fires
+    expect: fire
+    events:
+      - {action: service_install, user: pgustavo, host: WS-006, service_name: updsvc, service_path: 'C:\Windows\System32\cmd.exe /c whoami'}
+  - name: a service started from a file on an admin share fires
+    expect: fire
+    events:
+      - {action: service_install, user: pgustavo, host: WS-006, service_name: helper, service_path: '\\WS-005\ADMIN$\helper.exe'}
+  - name: a normal program under Program Files stays quiet
+    expect: no_fire
+    events:
+      - {action: service_install, user: SYSTEM, host: WS-006, service_name: WinDefend, service_path: '"C:\Program Files\Windows Defender\MsMpEng.exe"'}
+  - name: a driver service stays quiet
+    expect: no_fire
+    events:
+      - {action: service_install, user: SYSTEM, host: WS-006, service_name: vboxdrv, service_path: 'system32\drivers\VBoxDrv.sys'}
+  - name: the patch agent in its maintenance setup is excluded
+    expect: no_fire
+    events:
+      - {action: service_install, user: svc_patch, host: SRV-PATCH-01, service_name: patchrun, service_path: 'C:\Windows\Temp\patch\runner.exe'}

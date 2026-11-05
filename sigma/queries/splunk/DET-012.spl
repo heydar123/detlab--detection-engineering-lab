@@ -1,0 +1,7 @@
+# DET-012 query 1
+source="WinEventLog:Security"
+| rex field=ServiceFileName "(?<ServiceFileNameMatch>(?i)(%comspec%|\\bcmd(\\.exe)?[\\x22\\x27]?\\s+/[ck]\\b|powershell|pwsh|mshta|wscript|cscript|rundll32|regsvr32|\\\\\\\\[^\\\\]+\\\\(admin|c|ipc)\\$|\\\\(temp|appdata|programdata)\\\\|\\\\users\\\\public\\\\))"
+| eval ServiceFileNameCondition=if(isnotnull(ServiceFileNameMatch), "true", "false")
+| rex field=ServiceName "(?<ServiceNameMatch>(?i)^(psexe(c|sv)|paexec|remcom|csexec))"
+| eval ServiceNameCondition=if(isnotnull(ServiceNameMatch), "true", "false")
+| search ((EventCode=4697 ServiceFileNameCondition="true") OR (EventCode=4697 ServiceNameCondition="true"))

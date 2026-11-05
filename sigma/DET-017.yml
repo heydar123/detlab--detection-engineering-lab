@@ -1,0 +1,82 @@
+title: 'Event log cleared or audit policy weakened [log_clear]'
+id: d6ca0b7f-13ba-570f-ab34-5fe247144461
+name: detlab_det_017_log_clear
+status: experimental
+description: 'A Windows event log was cleared, auditing was turned down, or someone ran the command-line tools that do those things (wevtutil to clear or disable a log, auditpol to clear or disable audit settings). Attackers do this after they get in so the evidence of what they did is gone. There is almost never a good reason to do it outside of a planned, documented rotation job, which is handled with a narrow exclusion.'
+author: 'Detection Lab'
+date: '2026-11-04'
+tags:
+  - attack.defense-impairment
+  - attack.t1685.005
+  - attack.t1685.001
+logsource:
+  product: windows
+detection:
+  selection_1:
+    EventID:
+      - 1102
+      - 104
+  condition: selection_1
+falsepositives:
+  - 'Planned log rotation jobs, lab machines that are rebuilt often, and administrators who clear logs while troubleshooting. On the real lab datasets, many attack captures start by clearing the logs, so this rule also fires there (see docs/replay-results.md).'
+  - 'Known benign source at the lab site, not part of this export: The weekly log rotation job exports the Application log and then clears it on the log server (ticket IT-2310). Pinned to this account, this host AND the Application log only.'
+  - 'Known benign source at the lab site, not part of this export: The command-line side of the same weekly rotation job. Only clearing the Application log is covered, so clearing Security with this account still alerts.'
+level: high
+---
+title: 'Event log cleared or audit policy weakened [audit_policy_change]'
+id: b7e4279b-ab0b-5d89-aa2f-54418e38e794
+name: detlab_det_017_audit_policy_change
+status: experimental
+description: 'A Windows event log was cleared, auditing was turned down, or someone ran the command-line tools that do those things (wevtutil to clear or disable a log, auditpol to clear or disable audit settings). Attackers do this after they get in so the evidence of what they did is gone. There is almost never a good reason to do it outside of a planned, documented rotation job, which is handled with a narrow exclusion.'
+author: 'Detection Lab'
+date: '2026-11-04'
+tags:
+  - attack.defense-impairment
+  - attack.t1685.005
+  - attack.t1685.001
+logsource:
+  product: windows
+  service: security
+detection:
+  selection_1:
+    EventID: 4719
+  condition: selection_1
+falsepositives:
+  - 'Planned log rotation jobs, lab machines that are rebuilt often, and administrators who clear logs while troubleshooting. On the real lab datasets, many attack captures start by clearing the logs, so this rule also fires there (see docs/replay-results.md).'
+  - 'Known benign source at the lab site, not part of this export: The weekly log rotation job exports the Application log and then clears it on the log server (ticket IT-2310). Pinned to this account, this host AND the Application log only.'
+  - 'Known benign source at the lab site, not part of this export: The command-line side of the same weekly rotation job. Only clearing the Application log is covered, so clearing Security with this account still alerts.'
+level: high
+---
+title: 'Event log cleared or audit policy weakened [process_create]'
+id: '98a4d40a-8def-573b-80bc-63e2593279fc'
+name: detlab_det_017_process_create
+status: experimental
+description: 'A Windows event log was cleared, auditing was turned down, or someone ran the command-line tools that do those things (wevtutil to clear or disable a log, auditpol to clear or disable audit settings). Attackers do this after they get in so the evidence of what they did is gone. There is almost never a good reason to do it outside of a planned, documented rotation job, which is handled with a narrow exclusion.'
+author: 'Detection Lab'
+date: '2026-11-04'
+tags:
+  - attack.defense-impairment
+  - attack.t1685.005
+  - attack.t1685.001
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_1:
+    Image|endswith: '\wevtutil.exe'
+    CommandLine|re|i: '(\s(cl|clear-log)\s|\s(sl|set-log)\s.*(/lfn:|/logfilename:|/e:false))'
+  selection_2:
+    OriginalFileName: wevtutil.exe
+    CommandLine|re|i: '(\s(cl|clear-log)\s|\s(sl|set-log)\s.*(/lfn:|/logfilename:|/e:false))'
+  selection_3:
+    Image|endswith: '\auditpol.exe'
+    CommandLine|re|i: '(/clear|/remove|/set\b.*/(success|failure):disable)'
+  selection_4:
+    OriginalFileName: auditpol.exe
+    CommandLine|re|i: '(/clear|/remove|/set\b.*/(success|failure):disable)'
+  condition: 'selection_1 or selection_2 or selection_3 or selection_4'
+falsepositives:
+  - 'Planned log rotation jobs, lab machines that are rebuilt often, and administrators who clear logs while troubleshooting. On the real lab datasets, many attack captures start by clearing the logs, so this rule also fires there (see docs/replay-results.md).'
+  - 'Known benign source at the lab site, not part of this export: The weekly log rotation job exports the Application log and then clears it on the log server (ticket IT-2310). Pinned to this account, this host AND the Application log only.'
+  - 'Known benign source at the lab site, not part of this export: The command-line side of the same weekly rotation job. Only clearing the Application log is covered, so clearing Security with this account still alerts.'
+level: high

@@ -1,0 +1,60 @@
+id: DET-030
+title: Cloud access key created without MFA
+status: experimental
+severity: high
+attack:
+  tactic: Persistence
+  technique: T1098.001
+  technique_name: Additional Cloud Credentials
+description: >
+  A new cloud access key was created by a session that did not use MFA. Attackers who have stolen a long-lived
+  key create a second key (often for another account) so they keep access after the first one is found and
+  rotated. A stolen key carries no MFA, while people who create keys in the console normally sign in with MFA,
+  so the combination is unusual. Automation that rotates its own key is the main benign source and is handled
+  with a narrow exclusion.
+type: match
+filter:
+  action: cloud_audit
+  event_name: CreateAccessKey
+  outcome: success
+  mfa_used: false
+entity_fields: [user, target_user, src_ip]
+exclusions:
+  - match:
+      user: svc_ci
+      src_ip: 10.0.9.20
+    reason: The build pipeline rotates its own deploy key weekly from the build runner (ticket PLAT-512). Service accounts cannot use MFA. Pinned to the account AND the runner address, so a key created by this account from anywhere else still alerts.
+false_positives: >
+  Build and deployment automation that rotates keys, break-glass procedures.
+triage:
+  - Who created the key, for which account, and from which address?
+  - Was the calling session itself started with a long-lived key (no MFA)? Who owns that key?
+  - Has the new key been used yet, and from where?
+response:
+  - Disable the new key and review everything done with it.
+  - Rotate the key that made the call, since it may be stolen.
+tests:
+  - name: a key created without MFA fires
+    expect: fire
+    events:
+      - {action: cloud_audit, user: dev.ops, event_name: CreateAccessKey, event_source: iam.amazonaws.com, outcome: success, src_ip: 203.0.113.131, country: RO, mfa_used: false, target_user: svc_deploy}
+  - name: a key created with MFA stays quiet
+    expect: no_fire
+    events:
+      - {action: cloud_audit, user: dev.ops, event_name: CreateAccessKey, event_source: iam.amazonaws.com, outcome: success, src_ip: 198.51.100.40, country: US, mfa_used: true, target_user: svc_deploy}
+  - name: a refused key creation stays quiet
+    expect: no_fire
+    events:
+      - {action: cloud_audit, user: dev.ops, event_name: CreateAccessKey, event_source: iam.amazonaws.com, outcome: failure, mfa_used: false, target_user: svc_deploy}
+  - name: listing keys stays quiet
+    expect: no_fire
+    events:
+      - {action: cloud_audit, user: dev.ops, event_name: ListAccessKeys, event_source: iam.amazonaws.com, outcome: success, mfa_used: false}
+  - name: the build pipeline rotating its own key is excluded
+    expect: no_fire
+    events:
+      - {action: cloud_audit, user: svc_ci, event_name: CreateAccessKey, event_source: iam.amazonaws.com, outcome: success, src_ip: 10.0.9.20, mfa_used: false, target_user: svc_ci}
+  - name: the build account creating a key from another address still fires
+    expect: fire
+    events:
+      - {action: cloud_audit, user: svc_ci, event_name: CreateAccessKey, event_source: iam.amazonaws.com, outcome: success, src_ip: 203.0.113.131, mfa_used: false, target_user: svc_ci}

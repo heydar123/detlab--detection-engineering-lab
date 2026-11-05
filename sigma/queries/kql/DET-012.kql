@@ -1,0 +1,3 @@
+-- DET-012 query 1
+SecurityEvent
+| where (EventID == 4697 and ServiceFileName matches regex "(?i)(%comspec%|\\bcmd(\\.exe)?[\\x22\\x27]?\\s+/[ck]\\b|powershell|pwsh|mshta|wscript|cscript|rundll32|regsvr32|\\\\\\\\[^\\\\]+\\\\(admin|c|ipc)\\$|\\\\(temp|appdata|programdata)\\\\|\\\\users\\\\public\\\\)") or (EventID == 4697 and ServiceName matches regex "(?i)^(psexe(c|sv)|paexec|remcom|csexec)")

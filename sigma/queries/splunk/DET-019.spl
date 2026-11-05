@@ -1,0 +1,18 @@
+# DET-019 query 1
+source="WinEventLog:Security" EventCode=4720
+
+# DET-019 query 2
+source="WinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=1
+| rex field=CommandLine "(?<CommandLineMatch>(?i)\\buser\\b)"
+| eval CommandLineCondition=if(isnotnull(CommandLineMatch), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch2>(?i)\\s/add\\b)"
+| eval CommandLineCondition2=if(isnotnull(CommandLineMatch2), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch3>(?i)\\b(localgroup|group)\\b)"
+| eval CommandLineCondition3=if(isnotnull(CommandLineMatch3), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch4>(?i)\\buser\\b)"
+| eval CommandLineCondition4=if(isnotnull(CommandLineMatch4), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch5>(?i)\\s/add\\b)"
+| eval CommandLineCondition5=if(isnotnull(CommandLineMatch5), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch6>(?i)\\b(localgroup|group)\\b)"
+| eval CommandLineCondition6=if(isnotnull(CommandLineMatch6), "true", "false")
+| search (((Image IN ("*\\net.exe", "*\\net1.exe")) CommandLineCondition="true" CommandLineCondition2="true" NOT CommandLineCondition3="true") OR ((OriginalFileName IN ("net.exe", "net1.exe")) CommandLineCondition4="true" CommandLineCondition5="true" NOT CommandLineCondition6="true"))

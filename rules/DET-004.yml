@@ -1,0 +1,72 @@
+id: DET-004
+title: Encoded PowerShell command line
+status: stable
+severity: high
+attack:
+  tactic: Execution
+  technique: T1059.001
+  technique_name: PowerShell
+description: >
+  PowerShell started with an encoded command (-e, -ec, -enc, -EncodedCommand and
+  every shorter spelling of it) followed by a long base64 string. Attackers use
+  this to hide what they run; it is rare in normal desktop use. The spelling list
+  follows TrustedSec's published list of -EncodedCommand shorthands; it was not
+  independently tested on a live host. The first version of this rule missed -ec
+  and the longer partial spellings until the red-team test (EV-03) caught it.
+  Known gap: a command line that builds the flag at runtime never contains the
+  literal flag, so a pattern like this cannot see it (EV-06).
+type: match
+filter:
+  process_name|in: [powershell.exe, pwsh.exe]
+  command_line|regex: '(?i)\s-(e|ec|en|enc|enco|encod|encode|encoded|encodedc|encodedco|encodedcom|encodedcomm|encodedcomma|encodedcomman|encodedcommand)\s+[A-Za-z0-9+/=]{20,}'
+entity_fields: [user, host]
+exclusions:
+  - match:
+      user: svc_backup
+      host: BACKUP-01
+    reason: Nightly backup job launches PowerShell with an encoded command (ticket IT-2210). Pin to this user AND host.
+false_positives: >
+  Management and backup software that encodes commands, some software deployment
+  tools, administrators pasting one-liners.
+triage:
+  - Decode the base64 (UTF-16LE) and read what it does.
+  - Check the parent process - Office apps, browsers, and script hosts are red flags.
+  - Look at what else ran on the host in the 10 minutes around the event.
+  - Check for outbound network connections from the PowerShell process.
+response:
+  - Isolate the host if the decoded command downloads or executes something.
+  - Collect the process tree and the decoded payload as evidence.
+  - Hunt for the same command line or parent process across the fleet.
+tests:
+  - name: PowerShell with -enc and a long base64 string fires
+    expect: fire
+    events:
+      - {action: process_create, user: d.okafor, host: WS-003, process_name: powershell.exe, parent_process: cmd.exe, command_line: "powershell.exe -nop -w hidden -enc VwByAGkAdABlAC0ATwB1AHQAcAB1AHQAIAAnAGQAZQB0AGwAYQBiACcA"}
+  - name: the short spelling -ec fires (found by the red team as EV-03)
+    expect: fire
+    events:
+      - {action: process_create, user: j.smith, host: WS-002, process_name: powershell.exe, parent_process: excel.exe, command_line: "powershell.exe -nop -ec VwByAGkAdABlAC0ATwB1AHQAcAB1AHQAIAAnAGQAZQB0AGwAYQBiACcA"}
+  - name: ordinary PowerShell without an encoded command stays quiet
+    expect: no_fire
+    events:
+      - {action: process_create, user: a.nguyen, host: WS-001, process_name: powershell.exe, parent_process: explorer.exe, command_line: "powershell.exe -NoProfile -Command Get-Process"}
+  - name: the nightly backup job on the backup server is excluded
+    expect: no_fire
+    events:
+      - {action: process_create, user: svc_backup, host: BACKUP-01, process_name: powershell.exe, parent_process: taskeng.exe, command_line: "powershell.exe -NoProfile -EncodedCommand UwB0AGEAcgB0AC0AQgBhAGMAawB1AHAAIAAtAFQAYQByAGcAZQB0ACAARAA6AA=="}
+  - name: the same command on a different host is not excluded
+    expect: fire
+    events:
+      - {action: process_create, user: svc_backup, host: WS-009, process_name: powershell.exe, parent_process: taskeng.exe, command_line: "powershell.exe -NoProfile -EncodedCommand UwB0AGEAcgB0AC0AQgBhAGMAawB1AHAAIAAtAFQAYQByAGcAZQB0ACAARAA6AA=="}
+  - name: known gap - a flag built at runtime is not in the command line (see DET-021 for the fix)
+    expect: no_fire
+    events:
+      - {action: process_create, user: k.lee, host: WS-004, process_name: powershell.exe, parent_process: winword.exe, command_line: "powershell.exe -nop -w hidden -c \"$f='-e'+'c'; powershell $f VwByAGkAdABlAC0ATwB1AHQAcAB1AHQAIAAnAGQAZQB0AGwAYQBiACcA\""}
+  - name: pwsh.exe (PowerShell 7) with an encoded command fires
+    expect: fire
+    events:
+      - {action: process_create, user: k.lee, host: WS-004, process_name: pwsh.exe, parent_process: explorer.exe, command_line: 'pwsh.exe -enc SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkA'}
+  - name: the same flag and string given to another program stays quiet
+    expect: no_fire
+    events:
+      - {action: process_create, user: k.lee, host: WS-004, process_name: backupclient.exe, parent_process: services.exe, command_line: 'backupclient.exe -enc SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkA'}

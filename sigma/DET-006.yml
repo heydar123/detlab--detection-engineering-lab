@@ -1,0 +1,32 @@
+title: 'Privileged group membership change by an unapproved account'
+id: '08d1e017-96ed-51de-af5f-d289a8859c2f'
+name: detlab_det_006
+status: stable
+description: 'An account is added to a privileged group (Domain Admins, Enterprise Admins, Schema Admins, Administrators, or the Account, Backup, or Server Operators groups) by anyone other than the approved admin account. Attackers add themselves or a backdoor account to a privileged group once they have a foothold. The first version of this rule only watched three of these groups and missed Backup Operators until the red-team test (EV-04) caught it.'
+author: 'Detection Lab'
+date: '2026-11-04'
+tags:
+  - attack.persistence
+  - attack.t1098
+logsource:
+  product: windows
+  service: security
+detection:
+  selection_1:
+    EventID:
+      - 4728
+      - 4732
+      - 4756
+    TargetUserName:
+      - 'Domain Admins'
+      - 'Enterprise Admins'
+      - 'Schema Admins'
+      - Administrators
+      - 'Account Operators'
+      - 'Backup Operators'
+      - 'Server Operators'
+  condition: selection_1
+falsepositives:
+  - 'Planned admin changes, new IT staff onboarding, break-glass access.'
+  - 'Known benign source at the lab site, not part of this export: Approved admin account making ticketed changes (CHG-2231). Tradeoff - this blinds the rule if it.admin is itself compromised, so also alert on it.admin outside change windows.'
+level: critical

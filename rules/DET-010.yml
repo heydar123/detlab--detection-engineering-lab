@@ -1,0 +1,122 @@
+id: DET-010
+title: Credential-dumping command (registry hives, NTDS.dit, comsvcs, ProcDump)
+status: experimental
+severity: critical
+attack:
+  tactic: Credential Access
+  technique: T1003
+  technique_name: OS Credential Dumping
+  also: [T1003.001, T1003.002, T1003.003]
+description: >
+  A built-in Windows tool was used the way credential thieves use it: reg.exe saving the SAM, SECURITY
+  or SYSTEM hive, ntdsutil creating an IFM copy of the domain database, rundll32 calling the comsvcs.dll
+  MiniDump function, vssadmin or esentutl copying the NTDS.dit file, or ProcDump pointed at LSASS.
+  These tools are signed Microsoft binaries, so only the command line gives them away.
+type: match
+filter:
+  - action: process_create
+    process_name,original_name: reg.exe
+    command_line|regex: '(?i)\b(save|export)\b.*\bhk(lm|ey_local_machine)\\(sam|security|system)\b'
+  - action: process_create
+    process_name,original_name: ntdsutil.exe
+    command_line|regex: '(?i)(ac(tivate)?\s+i(nstance)?\s+ntds|\bifm\b)'
+  - action: process_create
+    process_name,original_name: rundll32.exe
+    command_line|regex: '(?i)comsvcs(\.dll)?[\x22\x27]?[,\s]+(#+0*24|minidump)'
+  - action: process_create
+    process_name,original_name: vssadmin.exe
+    command_line|regex: '(?i)create\s+shadow'
+  - action: process_create
+    process_name,original_name: esentutl.exe
+    command_line|regex: '(?i)ntds\.dit'
+  - action: process_create
+    process_name,original_name|in: [procdump.exe, procdump64.exe]
+    command_line|regex: '(?i)lsass'
+entity_fields: [user, host, process_name]
+suppress_seconds: 300
+exclusions:
+  - match:
+      user: svc_backup
+      host: BACKUP-01
+      process_name: vssadmin.exe
+    reason: The nightly backup job creates a shadow copy with vssadmin (ticket IT-2210). Pinned to this account, this host and this tool, so the same command anywhere else still alerts.
+false_positives: >
+  Backup and imaging software that creates shadow copies; a domain controller being cloned or restored.
+triage:
+  - Read the whole command line. Where was the output written, and is that path normal?
+  - Was the user an administrator doing planned work?
+  - Did anything read or copy the output file afterwards?
+response:
+  - Isolate the host and treat the dumped secrets as stolen.
+  - For NTDS.dit or SAM, reset the affected credentials, including krbtgt twice for domain-wide exposure.
+  - Delete the output file only after it has been collected as evidence.
+tests:
+  - name: reg save of the SAM hive fires
+    expect: fire
+    events:
+      - {action: process_create, user: wardog, host: WS-005, process_name: reg.exe, parent_process: powershell.exe, command_line: 'reg save HKLM\sam C:\Windows\Temp\sam.save'}
+  - name: ntdsutil creating an IFM copy fires
+    expect: fire
+    events:
+      - {action: process_create, user: Administrator, host: DC01, process_name: ntdsutil.exe, parent_process: cmd.exe, command_line: 'ntdsutil "ac i ntds" "ifm" "create full C:\Windows\Temp\ntds" q q'}
+  - name: comsvcs MiniDump with a space before MiniDump fires
+    expect: fire
+    events:
+      - {action: process_create, user: wardog, host: WS-005, process_name: rundll32.exe, parent_process: powershell.exe, command_line: '"C:\Windows\System32\rundll32.exe" C:\windows\System32\comsvcs.dll MiniDump 756 C:\Users\wardog\AppData\Local\Temp\l.dmp full'}
+  - name: comsvcs MiniDump with a comma fires
+    expect: fire
+    events:
+      - {action: process_create, user: wardog, host: WS-005, process_name: rundll32.exe, parent_process: cmd.exe, command_line: 'rundll32.exe comsvcs.dll, #24 756 c:\temp\l.dmp full'}
+  - name: ProcDump aimed at LSASS fires
+    expect: fire
+    events:
+      - {action: process_create, user: a.nguyen, host: WS-001, process_name: procdump64.exe, parent_process: cmd.exe, command_line: 'procdump64.exe -ma lsass.exe lsass.dmp'}
+  - name: reg query of an ordinary key stays quiet
+    expect: no_fire
+    events:
+      - {action: process_create, user: a.nguyen, host: WS-001, process_name: reg.exe, parent_process: cmd.exe, command_line: 'reg query HKLM\Software\Microsoft\Windows\CurrentVersion'}
+  - name: listing shadow copies stays quiet
+    expect: no_fire
+    events:
+      - {action: process_create, user: it.admin, host: SRV-FILE-01, process_name: vssadmin.exe, parent_process: cmd.exe, command_line: 'vssadmin list shadows'}
+  - name: the nightly backup job creating a shadow copy is excluded
+    expect: no_fire
+    events:
+      - {action: process_create, user: svc_backup, host: BACKUP-01, process_name: vssadmin.exe, parent_process: taskeng.exe, command_line: 'vssadmin create shadow /for=D:'}
+  - name: the same command from another account is not excluded
+    expect: fire
+    events:
+      - {action: process_create, user: j.smith, host: BACKUP-01, process_name: vssadmin.exe, parent_process: cmd.exe, command_line: 'vssadmin create shadow /for=C:'}
+  - name: a renamed copy of reg.exe is still caught through its original file name
+    expect: fire
+    events:
+      - {action: process_create, user: wardog, host: WS-005, process_name: r.exe, original_name: reg.exe, parent_process: cmd.exe, command_line: 'r.exe save HKLM\sam C:\Users\Public\s.save'}
+  - name: esentutl copying NTDS.dit fires
+    expect: fire
+    events:
+      - {action: process_create, user: k.lee, host: DC-01, process_name: esentutl.exe, parent_process: cmd.exe, command_line: 'esentutl.exe /y /vss C:\Windows\NTDS\ntds.dit /d C:\Temp\ntds.dit'}
+  - name: procdump.exe (not only procdump64.exe) dumping LSASS fires
+    expect: fire
+    events:
+      - {action: process_create, user: k.lee, host: WS-004, process_name: procdump.exe, parent_process: cmd.exe, command_line: 'procdump.exe -accepteula -ma lsass.exe C:\Temp\l.dmp'}
+  - name: the same tools with harmless arguments stay quiet
+    expect: no_fire
+    events:
+      - {action: process_create, user: k.lee, host: DC-01, process_name: ntdsutil.exe, parent_process: cmd.exe, command_line: ntdsutil.exe help quit}
+      - {action: process_create, user: k.lee, host: WS-004, process_name: rundll32.exe, parent_process: explorer.exe, command_line: 'rundll32.exe shell32.dll,Control_RunDLL desk.cpl'}
+      - {action: process_create, user: k.lee, host: EXCH-01, process_name: esentutl.exe, parent_process: cmd.exe, command_line: 'esentutl.exe /g C:\Exchange\mailbox.edb'}
+      - {action: process_create, user: k.lee, host: WS-004, process_name: procdump.exe, parent_process: cmd.exe, command_line: 'procdump.exe -accepteula -ma w3wp.exe C:\Temp\w3wp.dmp'}
+  - name: the dangerous words typed into another program do not count
+    expect: no_fire
+    events:
+      - {action: process_create, user: k.lee, host: WS-004, process_name: notepad.exe, parent_process: explorer.exe, command_line: 'notepad.exe C:\notes\how-to-reg-save-hklm\sam.txt'}
+      - {action: process_create, user: k.lee, host: WS-004, process_name: notepad.exe, parent_process: explorer.exe, command_line: 'notepad.exe ntdsutil-ifm-steps.txt'}
+      - {action: process_create, user: k.lee, host: WS-004, process_name: notepad.exe, parent_process: explorer.exe, command_line: 'notepad.exe comsvcs.dll, MiniDump notes.txt'}
+      - {action: process_create, user: k.lee, host: WS-004, process_name: notepad.exe, parent_process: explorer.exe, command_line: 'notepad.exe create shadow notes.txt'}
+      - {action: process_create, user: k.lee, host: WS-004, process_name: notepad.exe, parent_process: explorer.exe, command_line: 'notepad.exe C:\notes\ntds.dit.txt'}
+      - {action: process_create, user: k.lee, host: WS-004, process_name: notepad.exe, parent_process: explorer.exe, command_line: 'notepad.exe lsass-notes.txt'}
+  - name: the same event three times in a row is folded into one alert (repeats are throttled, not paged again)
+    expect: fire
+    alerts: 1
+    events:
+      - {action: process_create, user: wardog, host: WS-005, process_name: reg.exe, parent_process: powershell.exe, command_line: 'reg save HKLM\sam C:\Windows\Temp\sam.save', repeat: 3, every: 10s}

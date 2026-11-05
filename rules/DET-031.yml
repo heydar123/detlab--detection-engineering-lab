@@ -1,0 +1,67 @@
+id: DET-031
+title: Program, shortcut or script dropped into a Startup folder
+status: experimental
+severity: medium
+attack:
+  tactic: Persistence
+  technique: T1547.001
+  technique_name: Registry Run Keys / Startup Folder
+description: >
+  A file that can run code (a shortcut, program, library, script or HTA page) was created inside a Windows
+  Startup folder. Everything in that folder starts at sign-in, so it is the second most common place, after the
+  Run registry keys (DET-014), where attackers leave something to survive a reboot. This rule was added after the
+  red team test EV-10 showed that a Startup folder shortcut slipped past DET-014.
+type: match
+filter:
+  action: file_create
+  file_path|regex: '(?i)\\start menu\\programs\\startup\\[^\\]+\.(lnk|exe|dll|bat|cmd|vbs|vbe|js|jse|wsf|hta|ps1|scr)$'
+entity_fields: [host, process_name]
+suppress_seconds: 300
+exclusions:
+  - match:
+      process_name: msiexec.exe
+      file_path|endswith: '\Startup\ScannerTray.lnk'
+    reason: The document-scanner software installs a tray icon shortcut for every user (ticket IT-2342). Pinned to the installer program AND the exact file name, so any other file in a Startup folder still alerts.
+false_positives: >
+  Installers of tray applications that start at sign-in.
+triage:
+  - What created the file, and what does the shortcut or script run?
+  - Was the file created by an installer you recognise, or by a shell, script host or Office program?
+  - When will it run, and as which user?
+response:
+  - Remove the file after saving a copy, and look at what it launches.
+  - Check the same account for other persistence (Run keys, scheduled tasks, new services).
+tests:
+  - name: PowerShell creating a shortcut in the Startup folder fires
+    expect: fire
+    events:
+      - {action: file_create, host: WS-005, process_name: powershell.exe, file_path: 'C:\Users\wardog\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\Updater.lnk'}
+  - name: an HTA page created in the Startup folder fires
+    expect: fire
+    events:
+      - {action: file_create, host: WS-005, process_name: powershell.exe, file_path: 'C:\Users\wardog\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\payload.hta'}
+  - name: the all-users Startup folder fires too
+    expect: fire
+    events:
+      - {action: file_create, host: WS-005, process_name: cmd.exe, file_path: 'C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp\run.bat'}
+  - name: a text file in the Startup folder stays quiet
+    expect: no_fire
+    events:
+      - {action: file_create, host: WS-005, process_name: notepad.exe, file_path: 'C:\Users\j.smith\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\notes.txt'}
+  - name: a shortcut in the normal Start Menu stays quiet
+    expect: no_fire
+    events:
+      - {action: file_create, host: WS-005, process_name: msiexec.exe, file_path: 'C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Vendor\Viewer.lnk'}
+  - name: the scanner software tray shortcut is excluded
+    expect: no_fire
+    events:
+      - {action: file_create, host: WS-005, process_name: msiexec.exe, file_path: 'C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp\ScannerTray.lnk'}
+  - name: the same file name made by PowerShell still fires
+    expect: fire
+    events:
+      - {action: file_create, host: WS-005, process_name: powershell.exe, file_path: 'C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp\ScannerTray.lnk'}
+  - name: the same event three times in a row is folded into one alert (repeats are throttled, not paged again)
+    expect: fire
+    alerts: 1
+    events:
+      - {action: file_create, host: WS-005, process_name: powershell.exe, file_path: 'C:\Users\wardog\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\Updater.lnk', repeat: 3, every: 10s}

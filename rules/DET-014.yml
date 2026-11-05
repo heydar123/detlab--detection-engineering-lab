@@ -1,0 +1,69 @@
+id: DET-014
+title: Startup (Run key) entry pointing at a script, shell, or user-folder file
+status: experimental
+severity: high
+attack:
+  tactic: Persistence
+  technique: T1547.001
+  technique_name: Registry Run Keys / Startup Folder
+description: >
+  A value was written to a Run or RunOnce registry key (programs listed there start at every sign-in) and the
+  value runs PowerShell, a command shell, a script host, a web address, or a file in a temporary or user
+  folder. This is one of the oldest ways to survive a reboot. The key name is matched exactly, so keys that
+  only look similar (RunTime, RunsBlocked, RunAs) are ignored.
+type: match
+filter:
+  action: registry_set
+  registry_key|regex: '(?i)\\software\\(wow6432node\\)?microsoft\\windows\\currentversion\\(run|runonce)\\[^\\]+$'
+  registry_value|regex: '(?i)(powershell|cmd(\.exe)?[\x22\x27]?\s+/[ck]|wscript|cscript|mshta|regsvr32|rundll32|\\(appdata|temp|programdata)\\|\\users\\public\\|https?://|\s-enc)'
+entity_fields: [host, process_name, registry_key]
+suppress_seconds: 300
+exclusions:
+  - match:
+      process_name: Teams.exe
+      registry_value|contains: '\AppData\Local\Microsoft\Teams\Update.exe'
+    reason: The Teams client registers itself to start at sign-in from its own folder. Matched on the writing program AND the full program path, so another program writing the same value is still caught.
+false_positives: >
+  Per-user applications that start at sign-in from AppData (Teams, OneDrive, chat clients).
+triage:
+  - What wrote the value, and what does the value run? Open the file if it still exists.
+  - Which account owns the key (HKCU) or is it machine wide (HKLM)?
+  - When was the file first seen on this host?
+response:
+  - Remove the value after saving a copy, and quarantine the file it points to.
+  - Look for the same value on other hosts.
+  - Review how the writing process got there (see the case timeline).
+tests:
+  - name: a PowerShell value in HKLM Run fires
+    expect: fire
+    events:
+      - {action: registry_set, host: WS-005, process_name: powershell.exe, registry_key: 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run\Updater', registry_value: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -noP -sta -w 1 -enc SQBGACgA'}
+  - name: a program in a user AppData folder in HKCU RunOnce fires
+    expect: fire
+    events:
+      - {action: registry_set, host: WS-002, process_name: reg.exe, registry_key: 'HKU\S-1-5-21-1\Software\Microsoft\Windows\CurrentVersion\RunOnce\x', registry_value: 'C:\Users\j.smith\AppData\Roaming\x.exe'}
+  - name: a key that only looks like Run (RunTime) stays quiet
+    expect: no_fire
+    events:
+      - {action: registry_set, host: DC-01, process_name: lsass.exe, registry_key: 'HKLM\System\CurrentControlSet\Services\W32Time\SecureTimeLimits\RunTime\SecureTimeTickCount', registry_value: 'QWORD (0x00000000-0x00f79345)'}
+  - name: a normal program under Program Files in Run stays quiet
+    expect: no_fire
+    events:
+      - {action: registry_set, host: WS-002, process_name: setup.exe, registry_key: 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run\Antivirus', registry_value: '"C:\Program Files\Antivirus\agent.exe" /startup'}
+  - name: the Teams client starting itself is excluded
+    expect: no_fire
+    events:
+      - {action: registry_set, host: WS-002, process_name: Teams.exe, registry_key: 'HKU\S-1-5-21-1\Software\Microsoft\Windows\CurrentVersion\Run\com.squirrel.Teams.Teams', registry_value: '"C:\Users\j.smith\AppData\Local\Microsoft\Teams\Update.exe" --processStart "Teams.exe"'}
+  - name: another program writing the Teams value is still caught
+    expect: fire
+    events:
+      - {action: registry_set, host: WS-002, process_name: reg.exe, registry_key: 'HKU\S-1-5-21-1\Software\Microsoft\Windows\CurrentVersion\Run\com.squirrel.Teams.Teams', registry_value: '"C:\Users\j.smith\AppData\Local\Microsoft\Teams\Update.exe" --processStart "Teams.exe"'}
+  - name: a script path stored outside the Run keys is not an autostart
+    expect: no_fire
+    events:
+      - {action: registry_set, host: WS-004, process_name: setup.exe, registry_key: 'HKU\S-1-5-21-111\Software\Contoso\Updater\LastCommand', registry_value: 'powershell.exe -File C:\Users\k.lee\AppData\Local\Contoso\update.ps1'}
+  - name: the same event three times in a row is folded into one alert (repeats are throttled, not paged again)
+    expect: fire
+    alerts: 1
+    events:
+      - {action: registry_set, host: WS-005, process_name: powershell.exe, registry_key: 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run\Updater', registry_value: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -noP -sta -w 1 -enc SQBGACgA', repeat: 3, every: 10s}

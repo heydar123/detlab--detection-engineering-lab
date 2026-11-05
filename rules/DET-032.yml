@@ -1,0 +1,60 @@
+id: DET-032
+title: Incoming PowerShell remoting (WinRM) session started on this computer
+status: experimental
+severity: low
+attack:
+  tactic: Lateral Movement
+  technique: T1021.006
+  technique_name: Windows Remote Management
+description: >
+  The WinRM host process (wsmprovhost.exe) started. Windows starts it when someone connects to this computer
+  with PowerShell remoting (Invoke-Command, Enter-PSSession). The commands then run inside that process, so
+  they may not start any child process for DET-020 to see. This rule was added after a recorded Covenant
+  PSRemoting command (see docs/replay-results.md) showed exactly that: the session start was the only trace.
+  Administrators use remoting every day, so this is a low severity signal that mostly adds context to a case.
+type: match
+filter:
+  action: process_create
+  process_name,original_name: wsmprovhost.exe
+entity_fields: [user, host]
+suppress_seconds: 300
+exclusions:
+  - match:
+      user: it.admin
+      host: SRV-APP-01
+    reason: The help desk administrator manages the application server with PowerShell remoting every Monday afternoon (ticket IT-2350). Pinned to this admin AND this server, so remoting by anyone else, or to any other host, still alerts.
+false_positives: >
+  Administrators and management tools that use PowerShell remoting.
+triage:
+  - Which account connected, and from which computer? Look at the network logon just before.
+  - Is that account normally used for remoting, and is the source computer a management host?
+  - Which other alerts exist for the same account or host in the same hour?
+response:
+  - If the remoting was not expected, isolate the source computer and reset the account.
+  - Review what the session ran, using PowerShell script block logs if they are collected.
+tests:
+  - name: the WinRM host process starting fires
+    expect: fire
+    events:
+      - {action: process_create, user: pgustavo, host: WS-006, process_name: wsmprovhost.exe, parent_process: svchost.exe, command_line: 'C:\windows\system32\wsmprovhost.exe -Embedding'}
+  - name: a renamed copy is still caught through its original file name
+    expect: fire
+    events:
+      - {action: process_create, user: pgustavo, host: WS-006, process_name: w.exe, original_name: wsmprovhost.exe, parent_process: svchost.exe, command_line: 'C:\Users\Public\w.exe -Embedding'}
+  - name: repeated starts for the same account and host raise one alert
+    expect: fire
+    alerts: 1
+    events:
+      - {action: process_create, user: pgustavo, host: WS-006, process_name: wsmprovhost.exe, parent_process: svchost.exe, repeat: 5, every: 20s}
+  - name: an ordinary svchost.exe stays quiet
+    expect: no_fire
+    events:
+      - {action: process_create, user: SYSTEM, host: WS-006, process_name: svchost.exe, parent_process: services.exe, command_line: 'svchost.exe -k netsvcs'}
+  - name: the help desk administrator on the application server is excluded
+    expect: no_fire
+    events:
+      - {action: process_create, user: it.admin, host: SRV-APP-01, process_name: wsmprovhost.exe, parent_process: svchost.exe}
+  - name: the same administrator on another host still fires
+    expect: fire
+    events:
+      - {action: process_create, user: it.admin, host: SRV-DB-01, process_name: wsmprovhost.exe, parent_process: svchost.exe}

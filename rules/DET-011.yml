@@ -1,0 +1,62 @@
+id: DET-011
+title: DCSync - directory replication requested by a non-domain-controller account
+status: experimental
+severity: critical
+attack:
+  tactic: Credential Access
+  technique: T1003.006
+  technique_name: DCSync
+description: >
+  An account that is not a computer account asked a domain controller to replicate password data
+  (the DS-Replication-Get-Changes rights, seen in Security event 4662). Domain controllers do this
+  to each other all the time, and their accounts end in a dollar sign. A user account doing it means
+  someone is pretending to be a domain controller to pull every password hash in the domain
+  (Mimikatz lsadump::dcsync, Covenant, Impacket secretsdump).
+type: match
+filter:
+  action: directory_access
+  properties|regex: '(?i)1131f6a[ad]-9c07-11d1-f79f-00c04fc2dcd2|89e95b76-444d-4c62-991a-0facbeda640c'
+  not:
+    user|endswith: '$'
+entity_fields: [user, host]
+suppress_seconds: 600
+exclusions:
+  - match:
+      user|startswith: MSOL_
+    reason: The Azure AD Connect sync account replicates directory data on purpose. Tradeoff - an attacker who steals this account can DCSync unseen, so monitor where that account signs in from.
+false_positives: >
+  Directory synchronization products (Azure AD Connect) and some migration tools.
+triage:
+  - Is the account a known synchronization account? Where is the replication request coming from?
+  - Does the source host belong to a domain controller or the sync server?
+  - Did the same account sign in anywhere unusual in the last day?
+response:
+  - Disable the account and isolate the source host.
+  - Treat all domain credentials as exposed. Reset krbtgt twice and every privileged account.
+  - Review who holds replication rights and remove any that are not needed.
+tests:
+  - name: a user account requesting replication fires
+    expect: fire
+    events:
+      - {action: directory_access, user: pgustavo, host: DC-01, access_mask: "0x100", properties: "%%7688 {1131f6aa-9c07-11d1-f79f-00c04fc2dcd2} {19195a5b-6da0-11d0-afd3-00c04fd930c9}"}
+  - name: the replicate-all right fires too
+    expect: fire
+    events:
+      - {action: directory_access, user: pgustavo, host: DC-01, access_mask: "0x100", properties: "{1131f6ad-9c07-11d1-f79f-00c04fc2dcd2}"}
+  - name: another domain controller replicating (computer account) stays quiet
+    expect: no_fire
+    events:
+      - {action: directory_access, user: DC-02$, host: DC-01, access_mask: "0x100", properties: "{1131f6aa-9c07-11d1-f79f-00c04fc2dcd2}"}
+  - name: reading an ordinary directory property stays quiet
+    expect: no_fire
+    events:
+      - {action: directory_access, user: j.smith, host: DC-01, access_mask: "0x100", properties: "{bf967a86-0de6-11d0-a285-00aa003049e2}"}
+  - name: the Azure AD Connect sync account is excluded
+    expect: no_fire
+    events:
+      - {action: directory_access, user: MSOL_4f2c1d, host: DC-01, access_mask: "0x100", properties: "{1131f6aa-9c07-11d1-f79f-00c04fc2dcd2}"}
+  - name: the same event three times in a row is folded into one alert (repeats are throttled, not paged again)
+    expect: fire
+    alerts: 1
+    events:
+      - {action: directory_access, user: pgustavo, host: DC-01, access_mask: "0x100", properties: "%%7688 {1131f6aa-9c07-11d1-f79f-00c04fc2dcd2} {19195a5b-6da0-11d0-afd3-00c04fd930c9}", repeat: 3, every: 10s}

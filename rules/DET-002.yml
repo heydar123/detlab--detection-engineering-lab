@@ -1,0 +1,75 @@
+id: DET-002
+title: Password spray - one source failing against many accounts
+status: stable
+severity: high
+attack:
+  tactic: Credential Access
+  technique: T1110.003
+  technique_name: Password Spraying
+description: >
+  One source IP fails to log in to 10 or more distinct accounts inside 30
+  minutes. Spraying tries a few common passwords against many accounts, so a
+  per-account threshold (DET-001) never fires; this rule counts accounts instead.
+type: distinct_threshold
+filter:
+  action: login
+  outcome: failure
+group_by: [src_ip]
+distinct_field: user
+window_seconds: 1800
+threshold: 10
+exclusions:
+  - match:
+      src_ip: 10.0.5.50
+    reason: Approved weekly vulnerability scanner (change ticket SEC-1042). Review every quarter.
+false_positives: >
+  Vulnerability scanners, NAT gateways or proxies that hide many real users behind
+  one IP, a mis-pushed password to many managed devices.
+triage:
+  - Pull every login (success and failure) from the source IP in the last 24 hours.
+  - Look for any account that succeeded from this IP - that account is the priority.
+  - Check whether the source is a known proxy, NAT gateway, or scanner.
+response:
+  - Block the source IP.
+  - Force a password reset and session revocation for any account that succeeded.
+  - Check legacy authentication protocols that bypass MFA and disable them where possible.
+tests:
+  - name: one address failing against 12 different accounts fires
+    expect: fire
+    events:
+      - {action: login, outcome: failure, src_ip: 203.0.113.99, country: CN, service: o365, user: "user{i}", repeat: 12, every: 40s}
+  - name: only 9 different accounts stays under the threshold
+    expect: no_fire
+    events:
+      - {action: login, outcome: failure, src_ip: 203.0.113.99, country: CN, service: o365, user: "user{i}", repeat: 9, every: 40s}
+  - name: 12 accounts spread over 4 hours is too slow for this 30 minute rule
+    expect: no_fire
+    events:
+      - {action: login, outcome: failure, src_ip: 203.0.113.99, country: CN, service: o365, user: "user{i}", repeat: 12, every: 20m}
+  - name: the approved vulnerability scanner is excluded
+    expect: no_fire
+    events:
+      - {action: login, outcome: failure, src_ip: 10.0.5.50, country: US, service: ssh, user: "user{i}", repeat: 40, every: 3s}
+  - name: exactly 10 different accounts is enough to fire (the threshold itself counts)
+    expect: fire
+    events:
+      - {action: login, outcome: failure, src_ip: 203.0.113.99, country: CN, service: o365, user: "user{i}", repeat: 10, every: 40s}
+  - name: 15 different accounts signing in successfully from one address do not count
+    expect: no_fire
+    events:
+      - {action: login, outcome: success, src_ip: 203.0.113.99, country: US, service: o365, user: "user{i}", repeat: 15, every: 40s}
+  - name: 10 different accounts from the first to the last exactly 30 minutes apart still fire (the window edge counts)
+    expect: fire
+    events:
+      - {action: login, outcome: failure, src_ip: 203.0.113.99, country: CN, service: o365, user: "user{i}", repeat: 9, every: 1s}
+      - {at: 1800s, action: login, outcome: failure, src_ip: 203.0.113.99, country: CN, service: o365, user: last.user}
+  - name: the same 10 accounts with the last one a second later are outside the window
+    expect: no_fire
+    events:
+      - {action: login, outcome: failure, src_ip: 203.0.113.99, country: CN, service: o365, user: "user{i}", repeat: 9, every: 1s}
+      - {at: 1801s, action: login, outcome: failure, src_ip: 203.0.113.99, country: CN, service: o365, user: last.user}
+  - name: accounts tried from two addresses are counted per address (6 each stays quiet)
+    expect: no_fire
+    events:
+      - {action: login, outcome: failure, src_ip: 203.0.113.99, country: CN, service: o365, user: "user{i}", repeat: 6, every: 10s}
+      - {action: login, outcome: failure, src_ip: 203.0.113.98, country: CN, service: o365, user: "other{i}", repeat: 6, every: 10s}

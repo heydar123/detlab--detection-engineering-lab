@@ -1,0 +1,3 @@
+-- DET-007 query 1
+DeviceProcessEvents
+| where (FolderPath endswith "\\whoami.exe" or FolderPath endswith "\\net.exe" or FolderPath endswith "\\net1.exe" or FolderPath endswith "\\nltest.exe" or FolderPath endswith "\\systeminfo.exe" or FolderPath endswith "\\quser.exe") and (InitiatingProcessFolderPath endswith "\\powershell.exe" or InitiatingProcessFolderPath endswith "\\pwsh.exe" or InitiatingProcessFolderPath endswith "\\winword.exe" or InitiatingProcessFolderPath endswith "\\excel.exe" or InitiatingProcessFolderPath endswith "\\outlook.exe")

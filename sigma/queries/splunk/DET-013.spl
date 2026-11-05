@@ -1,0 +1,15 @@
+# DET-013 query 1
+source="WinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=1
+| rex field=CommandLine "(?<CommandLineMatch>(?i)/create\\b)"
+| eval CommandLineCondition=if(isnotnull(CommandLineMatch), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch2>(?i)(/ru\\s+[\\x22\\x27]?system|powershell|cmd(\\.exe)?[\\x22\\x27]?\\s+/[ck]|wscript|cscript|mshta|regsvr32|rundll32|\\\\(appdata|temp|programdata)\\\\|\\\\users\\\\public\\\\|https?://))"
+| eval CommandLineCondition2=if(isnotnull(CommandLineMatch2), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch3>(?i)/create\\b)"
+| eval CommandLineCondition3=if(isnotnull(CommandLineMatch3), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch4>(?i)(/ru\\s+[\\x22\\x27]?system|powershell|cmd(\\.exe)?[\\x22\\x27]?\\s+/[ck]|wscript|cscript|mshta|regsvr32|rundll32|\\\\(appdata|temp|programdata)\\\\|\\\\users\\\\public\\\\|https?://))"
+| eval CommandLineCondition4=if(isnotnull(CommandLineMatch4), "true", "false")
+| search ((Image="*\\schtasks.exe" CommandLineCondition="true" CommandLineCondition2="true") OR (OriginalFileName="schtasks.exe" CommandLineCondition3="true" CommandLineCondition4="true"))
+
+# DET-013 query 2
+source="WinEventLog:Security" EventCode=4698
+| regex TaskContent="(?i)(powershell|cmd(\\.exe)?[\\x22\\x27]?\\s+/[ck]|wscript|cscript|mshta|regsvr32|rundll32|\\\\(appdata|temp|programdata)\\\\|\\\\users\\\\public\\\\|https?://)"

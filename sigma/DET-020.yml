@@ -1,0 +1,56 @@
+title: 'Remote command run through WMI or WinRM'
+id: c6c5e217-00a1-5548-a5a4-7796cf6b621a
+name: detlab_det_020
+status: experimental
+description: 'A shell, script host, or signed Windows helper program was started by the WMI provider host (wmiprvse.exe) or by the WinRM host (wsmprovhost.exe), or "wmic /node: ... process call create" was used. That is how a command arrives when someone runs it on this computer from another one through WMI or PowerShell Remoting. Attackers use both to move between hosts with only built-in tools.'
+author: 'Detection Lab'
+date: '2026-11-04'
+tags:
+  - attack.lateral-movement
+  - attack.t1047
+  - attack.t1021.006
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_1:
+    ParentImage|endswith:
+      - '\wmiprvse.exe'
+      - '\wsmprovhost.exe'
+    Image|endswith:
+      - '\cmd.exe'
+      - '\powershell.exe'
+      - '\pwsh.exe'
+      - '\wscript.exe'
+      - '\cscript.exe'
+      - '\mshta.exe'
+      - '\rundll32.exe'
+      - '\regsvr32.exe'
+      - '\certutil.exe'
+      - '\bitsadmin.exe'
+  selection_2:
+    ParentImage|endswith:
+      - '\wmiprvse.exe'
+      - '\wsmprovhost.exe'
+    OriginalFileName:
+      - cmd.exe
+      - powershell.exe
+      - pwsh.exe
+      - wscript.exe
+      - cscript.exe
+      - mshta.exe
+      - rundll32.exe
+      - regsvr32.exe
+      - certutil.exe
+      - bitsadmin.exe
+  selection_3:
+    Image|endswith: '\wmic.exe'
+    CommandLine|re|i: '/node:.*\bprocess\s+call\s+create\b'
+  selection_4:
+    OriginalFileName: wmic.exe
+    CommandLine|re|i: '/node:.*\bprocess\s+call\s+create\b'
+  condition: 'selection_1 or selection_2 or selection_3 or selection_4'
+falsepositives:
+  - 'Management tools (monitoring, inventory, software deployment) and administrators using Invoke-Command.'
+  - 'Known benign source at the lab site, not part of this export: The monitoring server runs three fixed health-check commands on the file server through WMI every Monday (ticket IT-2315). Pinned to the account, the host AND the exact commands, so any other command through WMI still alerts.'
+level: high

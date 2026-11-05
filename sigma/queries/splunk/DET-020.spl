@@ -1,0 +1,7 @@
+# DET-020 query 1
+source="WinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=1
+| rex field=CommandLine "(?<CommandLineMatch>(?i)/node:.*\\bprocess\\s+call\\s+create\\b)"
+| eval CommandLineCondition=if(isnotnull(CommandLineMatch), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch2>(?i)/node:.*\\bprocess\\s+call\\s+create\\b)"
+| eval CommandLineCondition2=if(isnotnull(CommandLineMatch2), "true", "false")
+| search (((ParentImage IN ("*\\wmiprvse.exe", "*\\wsmprovhost.exe")) (Image IN ("*\\cmd.exe", "*\\powershell.exe", "*\\pwsh.exe", "*\\wscript.exe", "*\\cscript.exe", "*\\mshta.exe", "*\\rundll32.exe", "*\\regsvr32.exe", "*\\certutil.exe", "*\\bitsadmin.exe"))) OR ((ParentImage IN ("*\\wmiprvse.exe", "*\\wsmprovhost.exe")) (OriginalFileName IN ("cmd.exe", "powershell.exe", "pwsh.exe", "wscript.exe", "cscript.exe", "mshta.exe", "rundll32.exe", "regsvr32.exe", "certutil.exe", "bitsadmin.exe"))) OR (Image="*\\wmic.exe" CommandLineCondition="true") OR (OriginalFileName="wmic.exe" CommandLineCondition2="true"))

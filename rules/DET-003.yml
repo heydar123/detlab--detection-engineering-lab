@@ -1,0 +1,69 @@
+id: DET-003
+title: Impossible travel - successful logins from two countries within an hour
+status: stable
+severity: medium
+attack:
+  tactic: Initial Access
+  technique: T1078
+  technique_name: Valid Accounts
+description: >
+  The same user logs in successfully from two different countries within 60
+  minutes. Real travel cannot explain that gap, so one of the sessions is
+  probably using stolen credentials or a stolen session token.
+type: impossible_travel
+filter:
+  action: login
+  outcome: success
+max_minutes: 60
+exclusions:
+  - match:
+      src_ip: 192.0.2.77
+    reason: Corporate VPN egress node in the Netherlands - users exit from NL while physically in the US.
+false_positives: >
+  VPNs and secure web gateways with foreign egress points, mobile carriers that
+  route through other countries, geolocation database errors.
+triage:
+  - Compare the two source IPs - is either a VPN, proxy, or hosting provider?
+  - Check user agent, device ID, and MFA result for both sessions.
+  - Ask the user (out of band) whether they were travelling or using a VPN.
+  - "Review what the suspicious session did: mailbox rules, file downloads, OAuth grants."
+response:
+  - Revoke active sessions and reset the password if the user did not make the second login.
+  - Review mailbox forwarding rules and OAuth app consents created during the session.
+  - Add the egress IP to the documented exclusion list if it turns out to be a legitimate VPN.
+tests:
+  - name: US sign-in then Romania 17 minutes later fires
+    expect: fire
+    events:
+      - {action: login, outcome: success, user: r.patel, src_ip: 198.51.100.20, country: US, service: o365}
+      - {at: 17m, action: login, outcome: success, user: r.patel, src_ip: 203.0.113.120, country: RO, service: o365}
+  - name: US sign-in then the UK a day later is ordinary travel
+    expect: no_fire
+    events:
+      - {action: login, outcome: success, user: t.brown, src_ip: 198.51.100.21, country: US, service: o365}
+      - {at: 20h, action: login, outcome: success, user: t.brown, src_ip: 192.0.2.150, country: GB, service: o365}
+  - name: the corporate VPN exit in the Netherlands is excluded
+    expect: no_fire
+    events:
+      - {action: login, outcome: success, user: m.garcia, src_ip: 198.51.100.22, country: US, service: o365}
+      - {at: 10m, action: login, outcome: success, user: m.garcia, src_ip: 192.0.2.77, country: NL, service: vpn}
+  - name: two sign-ins from the same country stay quiet (the known gap behind EV-05)
+    expect: no_fire
+    events:
+      - {action: login, outcome: success, user: a.nguyen, src_ip: 198.51.100.23, country: US, service: o365}
+      - {at: 6m, action: login, outcome: success, user: a.nguyen, src_ip: 198.51.100.250, country: US, service: o365}
+  - name: exactly 60 minutes apart still fires (the limit itself counts)
+    expect: fire
+    events:
+      - {action: login, outcome: success, user: r.patel, src_ip: 198.51.100.20, country: US, service: o365}
+      - {at: 60m, action: login, outcome: success, user: r.patel, src_ip: 203.0.113.120, country: RO, service: o365}
+  - name: 61 minutes apart is just past the limit
+    expect: no_fire
+    events:
+      - {action: login, outcome: success, user: r.patel, src_ip: 198.51.100.20, country: US, service: o365}
+      - {at: 61m, action: login, outcome: success, user: r.patel, src_ip: 203.0.113.120, country: RO, service: o365}
+  - name: a failed sign-in from another country is not a trip
+    expect: no_fire
+    events:
+      - {action: login, outcome: success, user: r.patel, src_ip: 198.51.100.20, country: US, service: o365}
+      - {at: 5m, action: login, outcome: failure, user: r.patel, src_ip: 203.0.113.120, country: RO, service: o365}

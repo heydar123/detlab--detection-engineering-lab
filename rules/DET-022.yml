@@ -1,0 +1,130 @@
+id: DET-022
+title: Beaconing - one program contacts one external address at a steady rhythm
+status: experimental
+severity: medium
+attack:
+  tactic: Command and Control
+  technique: T1071.001
+  technique_name: Web Protocols
+  also: [T1573, T1095]
+description: >
+  A program on one host connected to the same external address at a very regular rhythm - at least 12
+  connections, 20 seconds to 15 minutes apart, with the gaps varying by no more than 15 percent. Malware that
+  checks in with its controller usually runs on a timer, and a person browsing does not. The measure is the
+  standard deviation of the gaps divided by their average (the coefficient of variation). A beacon with a lot
+  of random jitter (more than about 25 percent) is NOT caught by this rule; see EV-07.
+type: beaconing
+filter:
+  action: network_connect
+  dst_scope: external
+group_by: [host, process_name, dst_ip]
+window_seconds: 3600
+min_events: 12
+max_cv: 0.15
+min_interval_seconds: 20
+max_interval_seconds: 900
+exclusions:
+  - match:
+      process_name: patchagent.exe
+      dst_ip: 192.0.2.200
+    reason: The patch agent polls its vendor cloud service every 5 minutes during the monthly rollout window (ticket IT-2330). Pinned to the program AND the vendor address, so the same rhythm to any other address still alerts.
+false_positives: >
+  Software updaters, monitoring agents, chat and mail clients that poll on a timer, and time synchronisation.
+triage:
+  - What is the program, where does it live on disk, and who started it?
+  - Is the destination known (a vendor, a cloud service) or new in your environment?
+  - How much data goes each way? Beacons are usually small and the same size every time.
+response:
+  - Block the destination and isolate the host if the program is not recognised.
+  - Search for other hosts that contact the same address.
+  - Collect the program file and a memory capture before the host is rebuilt.
+tests:
+  - name: 15 connections exactly one minute apart fire
+    expect: fire
+    events:
+      - {action: network_connect, host: WS-007, process_name: rundll32.exe, dst_ip: 203.0.113.50, dst_port: 443, dst_scope: external, protocol: tcp, bytes_out: 420, bytes_in: 310, repeat: 15, every: 60s}
+  - name: a beacon with about 10 percent jitter fires
+    expect: fire
+    events:
+      - {action: network_connect, host: WS-007, process_name: svchost.exe, dst_ip: 203.0.113.50, dst_scope: external, at: 0}
+      - {action: network_connect, host: WS-007, process_name: svchost.exe, dst_ip: 203.0.113.50, dst_scope: external, at: 62}
+      - {action: network_connect, host: WS-007, process_name: svchost.exe, dst_ip: 203.0.113.50, dst_scope: external, at: 118}
+      - {action: network_connect, host: WS-007, process_name: svchost.exe, dst_ip: 203.0.113.50, dst_scope: external, at: 181}
+      - {action: network_connect, host: WS-007, process_name: svchost.exe, dst_ip: 203.0.113.50, dst_scope: external, at: 236}
+      - {action: network_connect, host: WS-007, process_name: svchost.exe, dst_ip: 203.0.113.50, dst_scope: external, at: 302}
+      - {action: network_connect, host: WS-007, process_name: svchost.exe, dst_ip: 203.0.113.50, dst_scope: external, at: 357}
+      - {action: network_connect, host: WS-007, process_name: svchost.exe, dst_ip: 203.0.113.50, dst_scope: external, at: 421}
+      - {action: network_connect, host: WS-007, process_name: svchost.exe, dst_ip: 203.0.113.50, dst_scope: external, at: 478}
+      - {action: network_connect, host: WS-007, process_name: svchost.exe, dst_ip: 203.0.113.50, dst_scope: external, at: 541}
+      - {action: network_connect, host: WS-007, process_name: svchost.exe, dst_ip: 203.0.113.50, dst_scope: external, at: 597}
+      - {action: network_connect, host: WS-007, process_name: svchost.exe, dst_ip: 203.0.113.50, dst_scope: external, at: 662}
+  - name: one long beacon is one alert, not one per connection
+    expect: fire
+    alerts: 1
+    events:
+      - {action: network_connect, host: WS-007, process_name: rundll32.exe, dst_ip: 203.0.113.50, dst_scope: external, repeat: 60, every: 60s}
+  - name: human-looking irregular connections stay quiet
+    expect: no_fire
+    events:
+      - {action: network_connect, host: WS-002, process_name: chrome.exe, dst_ip: 203.0.113.60, dst_scope: external, at: 0}
+      - {action: network_connect, host: WS-002, process_name: chrome.exe, dst_ip: 203.0.113.60, dst_scope: external, at: 7}
+      - {action: network_connect, host: WS-002, process_name: chrome.exe, dst_ip: 203.0.113.60, dst_scope: external, at: 190}
+      - {action: network_connect, host: WS-002, process_name: chrome.exe, dst_ip: 203.0.113.60, dst_scope: external, at: 205}
+      - {action: network_connect, host: WS-002, process_name: chrome.exe, dst_ip: 203.0.113.60, dst_scope: external, at: 211}
+      - {action: network_connect, host: WS-002, process_name: chrome.exe, dst_ip: 203.0.113.60, dst_scope: external, at: 640}
+      - {action: network_connect, host: WS-002, process_name: chrome.exe, dst_ip: 203.0.113.60, dst_scope: external, at: 655}
+      - {action: network_connect, host: WS-002, process_name: chrome.exe, dst_ip: 203.0.113.60, dst_scope: external, at: 1000}
+      - {action: network_connect, host: WS-002, process_name: chrome.exe, dst_ip: 203.0.113.60, dst_scope: external, at: 1013}
+      - {action: network_connect, host: WS-002, process_name: chrome.exe, dst_ip: 203.0.113.60, dst_scope: external, at: 1500}
+      - {action: network_connect, host: WS-002, process_name: chrome.exe, dst_ip: 203.0.113.60, dst_scope: external, at: 1502}
+      - {action: network_connect, host: WS-002, process_name: chrome.exe, dst_ip: 203.0.113.60, dst_scope: external, at: 2200}
+  - name: only 8 steady connections is below the minimum
+    expect: no_fire
+    events:
+      - {action: network_connect, host: WS-007, process_name: rundll32.exe, dst_ip: 203.0.113.50, dst_scope: external, repeat: 8, every: 60s}
+  - name: a very fast steady stream (every 5 seconds) is not a beacon rhythm
+    expect: no_fire
+    events:
+      - {action: network_connect, host: WS-007, process_name: chrome.exe, dst_ip: 203.0.113.50, dst_scope: external, repeat: 40, every: 5s}
+  - name: a steady rhythm to an internal address stays quiet
+    expect: no_fire
+    events:
+      - {action: network_connect, host: WS-007, process_name: svchost.exe, dst_ip: 10.0.0.5, dst_scope: internal, repeat: 20, every: 60s}
+  - name: the patch agent polling its vendor is excluded
+    expect: no_fire
+    events:
+      - {action: network_connect, host: WS-003, process_name: patchagent.exe, dst_ip: 192.0.2.200, dst_scope: external, repeat: 36, every: 300s}
+  - name: the same rhythm to a different address still fires
+    expect: fire
+    events:
+      - {action: network_connect, host: WS-003, process_name: patchagent.exe, dst_ip: 203.0.113.50, dst_scope: external, repeat: 36, every: 300s}
+  - name: 11 steady connections are one short of the minimum
+    expect: no_fire
+    events:
+      - {action: network_connect, host: WS-007, process_name: rundll32.exe, dst_ip: 203.0.113.50, dst_port: 443, dst_scope: external, protocol: tcp, repeat: 11, every: 60s}
+  - name: 12 steady connections from the first to the last exactly one hour apart still fire (the window edge counts)
+    expect: fire
+    events:
+      - {action: network_connect, host: WS-007, process_name: rundll32.exe, dst_ip: 203.0.113.50, dst_scope: external, repeat: 9, every: 327s}
+      - {at: 2944s, action: network_connect, host: WS-007, process_name: rundll32.exe, dst_ip: 203.0.113.50, dst_scope: external, repeat: 3, every: 328s}
+  - name: the same rhythm with the last connection a second later has only 11 inside the hour
+    expect: no_fire
+    events:
+      - {action: network_connect, host: WS-007, process_name: rundll32.exe, dst_ip: 203.0.113.50, dst_scope: external, repeat: 9, every: 327s}
+      - {at: 2944s, action: network_connect, host: WS-007, process_name: rundll32.exe, dst_ip: 203.0.113.50, dst_scope: external, repeat: 2, every: 328s}
+      - {at: 3601s, action: network_connect, host: WS-007, process_name: rundll32.exe, dst_ip: 203.0.113.50, dst_scope: external}
+  - name: two hosts calling the same address are counted per host (8 connections each stays quiet)
+    expect: no_fire
+    events:
+      - {at: 0s, action: network_connect, host: WS-007, process_name: rundll32.exe, dst_ip: 203.0.113.50, dst_scope: external, repeat: 8, every: 120s}
+      - {at: 60s, action: network_connect, host: WS-008, process_name: rundll32.exe, dst_ip: 203.0.113.50, dst_scope: external, repeat: 8, every: 120s}
+  - name: two programs calling the same address from one host are counted per program (8 connections each stays quiet)
+    expect: no_fire
+    events:
+      - {at: 0s, action: network_connect, host: WS-007, process_name: rundll32.exe, dst_ip: 203.0.113.50, dst_scope: external, repeat: 8, every: 120s}
+      - {at: 60s, action: network_connect, host: WS-007, process_name: svchost.exe, dst_ip: 203.0.113.50, dst_scope: external, repeat: 8, every: 120s}
+  - name: one program calling two addresses is counted per address (8 connections each stays quiet)
+    expect: no_fire
+    events:
+      - {at: 0s, action: network_connect, host: WS-007, process_name: rundll32.exe, dst_ip: 203.0.113.50, dst_scope: external, repeat: 8, every: 120s}
+      - {at: 60s, action: network_connect, host: WS-007, process_name: rundll32.exe, dst_ip: 203.0.113.51, dst_scope: external, repeat: 8, every: 120s}

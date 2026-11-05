@@ -1,0 +1,299 @@
+{
+  "rules": {
+    "DET-004": {
+      "kusto": {
+        "notes": [],
+        "queries": 1,
+        "sha256": "ba0b7c68c246e41a8d65ca7881f5f4ab41b01e0ea66724e754ef4b5db172cbdc",
+        "status": "ok"
+      },
+      "sigma_sha256": "6e663484c9010d8b3e0a9ad18bb2a9f128b24d41e20a84400465f3c762a957e0",
+      "splunk": {
+        "notes": [],
+        "queries": 1,
+        "sha256": "b5801a9e67b92ae2bb21823744902f343eddd33cded4a4fc7e97c421c53a2248",
+        "status": "ok"
+      }
+    },
+    "DET-006": {
+      "kusto": {
+        "notes": [],
+        "queries": 1,
+        "sha256": "40e5a31d56cdd87c0ebdf027b2e69efaff0cf3c61505370e208fcd4a87b9e618",
+        "status": "ok"
+      },
+      "sigma_sha256": "17212ff5cad142b2314ff58929d6e010d649be4d3442472ea302a547154b93bf",
+      "splunk": {
+        "notes": [],
+        "queries": 1,
+        "sha256": "0f3b762036bec089af7ee0a9d150f8bd7b346c4ea78ff2c9e38caebda56ca5db",
+        "status": "ok"
+      }
+    },
+    "DET-007": {
+      "kusto": {
+        "notes": [],
+        "queries": 1,
+        "sha256": "7a8f7a743558071b938109ce80d5ee08ee4fa4f3cbe7b4b9ff5c7f4fdaca0901",
+        "status": "ok"
+      },
+      "sigma_sha256": "7514d51ca3cf85e50600381f6d0c99267ca7e1438164d6ba746ded86626d2c8e",
+      "splunk": {
+        "notes": [],
+        "queries": 1,
+        "sha256": "cd79235ef72d5570224390e7b1a3b8900d40894f4dfa025fedb7e231b9d392ef",
+        "status": "ok"
+      }
+    },
+    "DET-010": {
+      "kusto": {
+        "notes": [],
+        "queries": 1,
+        "sha256": "75163117d58c0d5d22415b4d730333e5c61a8a6eacd785749b5e59f9dfffd42c",
+        "status": "ok"
+      },
+      "sigma_sha256": "3767f7f644e371d04428900036cb72682988fc8fef3094e0b718e02bbf48e070",
+      "splunk": {
+        "notes": [],
+        "queries": 1,
+        "sha256": "0ea4f5ce89efc51ee39dac029b0f73a8e7209594d2f070d8c54c6b6978cc4ae3",
+        "status": "ok"
+      }
+    },
+    "DET-011": {
+      "kusto": {
+        "notes": [],
+        "queries": 1,
+        "sha256": "5a8739a7dbd325c40c1954dbd5e68378ebffa8b2ef367b632bfd00e627064fea",
+        "status": "ok"
+      },
+      "sigma_sha256": "13d575c6832368bfee1742ade71efc6ea8b9522ffc6955f14a13f9011e990656",
+      "splunk": {
+        "notes": [],
+        "queries": 1,
+        "sha256": "a62368e595122e8be9dd79ae6b93e6a3a280998ad5d5771c4ea51e89de216c34",
+        "status": "ok"
+      }
+    },
+    "DET-012": {
+      "kusto": {
+        "notes": [],
+        "queries": 1,
+        "sha256": "84f77d39dd385b9b3c817f79a60828f5de029591d95036dd5f44f09bbaa1db6b",
+        "status": "ok"
+      },
+      "sigma_sha256": "ba1e2f583a54f6ba3712769d5020801c96064647565060e2d3e78d049edcf20f",
+      "splunk": {
+        "notes": [],
+        "queries": 1,
+        "sha256": "0b396a92b64538e8121a01bf6e3e9b738cb2fd268677a9014012205e0aca0173",
+        "status": "ok"
+      }
+    },
+    "DET-013": {
+      "kusto": {
+        "notes": [
+          "SigmaTransformationError: Invalid SigmaDetectionItem field name encountered: TaskContent. Please use valid fields for the SecurityEvent table, or the following fields that have fieldmapp"
+        ],
+        "queries": 1,
+        "sha256": "b17a282ee553ee00dc2aa74cf2eb58c83234f0944ff71f464cfb5ca1c67270c9",
+        "status": "ok"
+      },
+      "sigma_sha256": "b39f8f0d8bbab20980211cf6f93d79f42fa044d3ab5a2d6664147ccc8656d303",
+      "splunk": {
+        "notes": [],
+        "queries": 2,
+        "sha256": "5e1b80eb1f73859064f319a73edd7c44d34f563bbcb9fcdaa2fef2bcf40a57ec",
+        "status": "ok"
+      }
+    },
+    "DET-014": {
+      "kusto": {
+        "notes": [],
+        "queries": 1,
+        "sha256": "437c89c5af8ad30238ae8d8683affac9256842c80ee656c513ce5e840a216bb0",
+        "status": "ok"
+      },
+      "sigma_sha256": "302d8415d12a4462e00b5ee6481f2e0d0cfa49b59fbb02b9194049a031ed6def",
+      "splunk": {
+        "notes": [],
+        "queries": 1,
+        "sha256": "ee2573fc41da138a861c7907feb8c97bf2d006d58de1bfd17734cfb26c520e36",
+        "status": "ok"
+      }
+    },
+    "DET-015": {
+      "kusto": {
+        "notes": [],
+        "queries": 1,
+        "sha256": "23eaf22b48f49eae9d170750699ed690e0c354d8a9c0b9210d4460473a0b7ad9",
+        "status": "ok"
+      },
+      "sigma_sha256": "8d223141c874e4455013a8b4b317352d1fed3e2eaaa04ad63d588f927d83107c",
+      "splunk": {
+        "notes": [],
+        "queries": 1,
+        "sha256": "3480e8681135ca67573ad7abe6abe89eab447f5c91eaa0a1214fd0975fe36573",
+        "status": "ok"
+      }
+    },
+    "DET-016": {
+      "kusto": {
+        "notes": [],
+        "queries": 1,
+        "sha256": "d3e2b3e0a554020c8bbfa23c390d0ef0260a8751d573f14af63bbf86d1aa821f",
+        "status": "ok"
+      },
+      "sigma_sha256": "bd7928c8bb21237773c0e64c60f6c1a171c22d49d65d5318152c678b80e6ba9a",
+      "splunk": {
+        "notes": [],
+        "queries": 1,
+        "sha256": "9eb82dca2d20a53b8def95a55c745d3ff60871a0a09659926f067a13521dc991",
+        "status": "ok"
+      }
+    },
+    "DET-017": {
+      "kusto": {
+        "notes": [],
+        "queries": 3,
+        "sha256": "d20ef6a228c5ce5badd609cdf194081ea5d26819acdffd255d90b7f419a96010",
+        "status": "ok"
+      },
+      "sigma_sha256": "43b5d7ed2cb6aea933773a5529df3c21ea9d01c3216b2d2ce4e8349f0ddd3461",
+      "splunk": {
+        "notes": [],
+        "queries": 3,
+        "sha256": "7c58029f27c2e00f42e319dcc95d15e1e186fbfb3de53dfbca41603920961fec",
+        "status": "ok"
+      }
+    },
+    "DET-018": {
+      "kusto": {
+        "notes": [],
+        "queries": 1,
+        "sha256": "e2a6a05aad2dc206fecbd028d2b15d5669516320c4aaf92abc7773b5a3718e58",
+        "status": "ok"
+      },
+      "sigma_sha256": "575e9212b8b534fd30af63f16e140ae9a32f59077c204bd91c43fb0dd549e88c",
+      "splunk": {
+        "notes": [],
+        "queries": 1,
+        "sha256": "8c7f2a184d076c85b56cbcc37d9207884ee1de8d0da44a3cfcba95f73b1726a2",
+        "status": "ok"
+      }
+    },
+    "DET-019": {
+      "kusto": {
+        "notes": [],
+        "queries": 2,
+        "sha256": "0515e31db256dcbc488bd93aced51fc6b5930e379190717ff0bc906070dcc10f",
+        "status": "ok"
+      },
+      "sigma_sha256": "8a6956ce07556a6c68d0bf095eb88d5eb2c937caccb867cfec692fceca530a9b",
+      "splunk": {
+        "notes": [],
+        "queries": 2,
+        "sha256": "3b69bc8c2511dc9dc6c72da038c124bdabd1503175cfc9c5ce6bc1d1f3e8612f",
+        "status": "ok"
+      }
+    },
+    "DET-020": {
+      "kusto": {
+        "notes": [],
+        "queries": 1,
+        "sha256": "0ad072b711af192c4d8d6ee31c2834a974329a3384f47dbd1936a42fdc9fb99c",
+        "status": "ok"
+      },
+      "sigma_sha256": "53f45ab98873ccb3234f9c1cb5665cf27ab1bd5bb10543106a99d7695efa09ad",
+      "splunk": {
+        "notes": [],
+        "queries": 1,
+        "sha256": "e5b3b387dfac198a38ffa33f704aac82210621592299ae4c19c75475fa6a9538",
+        "status": "ok"
+      }
+    },
+    "DET-021": {
+      "kusto": {
+        "error": "ValueError: SigmaTransformationError: Unable to determine table name from rule.  The query table is determined in the following order of priority:   1) The value provided to processing pipeline's qu",
+        "status": "failed"
+      },
+      "sigma_sha256": "dca20dabaa70113fbacd63b69f62012d7822726a08788c1c555c2e68e7b33748",
+      "splunk": {
+        "notes": [],
+        "queries": 1,
+        "sha256": "68c01b1f81627db933eb1f629e9ec34559356f6036c13887fdd3873a27013022",
+        "status": "ok"
+      }
+    },
+    "DET-026": {
+      "kusto": {
+        "notes": [
+          "pysigma-backend-kusto has no support for correlation rules"
+        ],
+        "queries": 1,
+        "sha256": "31ff010322ad3830bb5e690aa6a061a84868df22a9ea2013d2d99b7a46c40ecc",
+        "status": "ok"
+      },
+      "sigma_sha256": "ee99ae20b82c0b5393688ed5cd250296e1ea3b22b54bcc4f988eb87313b52000",
+      "splunk": {
+        "notes": [],
+        "queries": 1,
+        "sha256": "d795b90bb9075406e262339bfa983faac05be63f99da6398a555b61bac1676b2",
+        "status": "ok"
+      }
+    },
+    "DET-029": {
+      "kusto": {
+        "error": "ValueError: no standard pySigma pipeline maps CloudTrail field names to the AWSCloudTrail table",
+        "status": "failed"
+      },
+      "sigma_sha256": "cf313da6699041dca1235e181fdd2e42c86f32d8163cc0b76ed1d323b9a84430",
+      "splunk": {
+        "notes": [],
+        "queries": 1,
+        "sha256": "1c02d6ff156bc4d54a2c38bc801924f4cb847d26642169451362682f4162dba9",
+        "status": "ok"
+      }
+    },
+    "DET-031": {
+      "kusto": {
+        "notes": [],
+        "queries": 1,
+        "sha256": "868641e103ae984aabe932a261f6ea47af23d43585f7413f0714cdc2e585cd69",
+        "status": "ok"
+      },
+      "sigma_sha256": "dc79b67724e533d91f6ebde4784c01ae97a6d86b09bde1830a15144b48eb1094",
+      "splunk": {
+        "notes": [],
+        "queries": 1,
+        "sha256": "da8756e120ac7adc791c04834496c0c265c5d1e97c4d5bb52d5618920a8be2db",
+        "status": "ok"
+      }
+    },
+    "DET-032": {
+      "kusto": {
+        "notes": [],
+        "queries": 1,
+        "sha256": "61746b13532c48c3c23fe8e6852966d073016c4f92ec57da3aa5c3925f4453e2",
+        "status": "ok"
+      },
+      "sigma_sha256": "6a9fa220ad14580649df72c9d178476dd2506bc1576a46babb6070272103cfd9",
+      "splunk": {
+        "notes": [],
+        "queries": 1,
+        "sha256": "bb8f792609a95c610e04192c8196ad5fcffc85fa1f25b44cd5bba1d10624a381",
+        "status": "ok"
+      }
+    }
+  },
+  "tools": {
+    "kusto": {
+      "backend": "1.0.1",
+      "pysigma": "1.5.1"
+    },
+    "splunk": {
+      "backend": "3.0.0",
+      "pysigma": "2.0.2"
+    }
+  }
+}

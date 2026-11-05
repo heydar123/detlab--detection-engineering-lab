@@ -1,0 +1,92 @@
+id: DET-009
+title: LSASS memory opened by an unexpected program
+status: experimental
+severity: critical
+attack:
+  tactic: Credential Access
+  technique: T1003.001
+  technique_name: LSASS Memory
+description: >
+  A program opened the memory of lsass.exe with rights that let it read or change that memory
+  (VM_READ, VM_WRITE or VM_OPERATION). Credential theft tools such as Mimikatz, ProcDump and the
+  comsvcs.dll MiniDump trick all do this to copy passwords, hashes and tickets out of memory.
+  Windows components that only ask to query lsass.exe (access 0x1000, 0x1400) do not match.
+  The test is a bit test on the access mask, so a tool that asks for a slightly different mask
+  than the ones seen so far is still caught.
+  Known false alarm: programs written for .NET that list the processes on a machine (Get-Process, monitoring
+  and guest agents) also open lsass.exe with read access (0x1410). Real recordings showed two of them (see
+  false_positives).
+type: match
+filter:
+  action: process_access
+  target_process: lsass.exe
+  granted_access|bitany: "0x0038"
+entity_fields: [host, process_name]
+suppress_seconds: 600
+exclusions:
+  - match:
+      process_name: CollectGuestLogs.exe
+      process_path|startswith: 'C:\WindowsAzure\GuestAgent_'
+      granted_access: "0x1410"
+    reason: The Azure virtual machine guest agent lists the processes on the machine, and that opens lsass.exe with read access (0x1410). Seen in a real recording (empire_smbexec_dcerpc_smb_svcctl). Pinned to the program name, its install folder AND the exact access mask, so a dump tool that asks for more access, or the same name run from another folder, still fires. Added after the first holdout run.
+false_positives: >
+  Endpoint security agents and some backup or monitoring tools read LSASS memory. Add each one as a
+  documented exclusion that pins the full program path and the host, never the file name alone.
+  Two real examples are in the recordings under replay/. Get-Process run through PowerShell remoting
+  (wsmprovhost.exe) opens lsass.exe with 0x1410 and 0x1f3fff. That alert is kept on purpose: wsmprovhost.exe is
+  also what runs Invoke-Mimikatz over remoting, so excluding it would hide a real attack. The Azure guest
+  agent (CollectGuestLogs.exe) does the same with 0x1410 and has the narrow exclusion above.
+triage:
+  - Which program opened LSASS and where does it live on disk? A file in a user folder or Temp is a red flag.
+  - What started that program, and who was signed in?
+  - Read the call trace if the log has one. A trace that only passes through Windows and .NET files
+    (for example System.ni.dll) points to a process listing such as Get-Process. A frame shown as UNKNOWN is
+    code running from memory with no file behind it, and comsvcs.dll or dbgcore.dll frames mean a dump is being
+    written. This is a hint to look closer, not proof either way.
+  - Was a dump file written in the next minute (look for new .dmp files on the same host)?
+response:
+  - Isolate the host. Treat every account that was signed in on it as exposed.
+  - Reset those credentials and invalidate their tickets.
+  - Collect the program and the dump file as evidence.
+tests:
+  - name: ProcDump opening LSASS with full access fires
+    expect: fire
+    events:
+      - {action: process_access, host: WS-007, process_name: procdump.exe, process_path: 'C:\Users\public\procdump.exe', target_process: lsass.exe, granted_access: "0x1fffff"}
+  - name: PowerShell opening LSASS with read access fires (the Mimikatz pattern)
+    expect: fire
+    events:
+      - {action: process_access, host: WS-007, process_name: powershell.exe, target_process: lsass.exe, granted_access: "0x1010"}
+  - name: a Windows component only querying LSASS stays quiet
+    expect: no_fire
+    events:
+      - {action: process_access, host: WS-007, process_name: svchost.exe, target_process: lsass.exe, granted_access: "0x1000"}
+  - name: a guest-tools service with query-only access stays quiet
+    expect: no_fire
+    events:
+      - {action: process_access, host: WS-007, process_name: VBoxService.exe, target_process: lsass.exe, granted_access: "0x1400"}
+  - name: full access to some other program is not this rule
+    expect: no_fire
+    events:
+      - {action: process_access, host: WS-007, process_name: procdump.exe, target_process: explorer.exe, granted_access: "0x1fffff"}
+  - name: Get-Process through PowerShell remoting still fires (known false alarm, kept on purpose)
+    expect: fire
+    events:
+      - {action: process_access, host: WS-007, process_name: wsmprovhost.exe, target_process: lsass.exe, granted_access: "0x1410"}
+  - name: the Azure guest agent listing processes is excluded
+    expect: no_fire
+    events:
+      - {action: process_access, host: WS-007, process_name: CollectGuestLogs.exe, process_path: 'C:\WindowsAzure\GuestAgent_2.7.41491.993\CollectGuestLogs.exe', target_process: lsass.exe, granted_access: "0x1410"}
+  - name: the same program name run from a user folder still fires
+    expect: fire
+    events:
+      - {action: process_access, host: WS-007, process_name: CollectGuestLogs.exe, process_path: 'C:\Users\public\CollectGuestLogs.exe', target_process: lsass.exe, granted_access: "0x1410"}
+  - name: the guest agent folder with dump-level access still fires
+    expect: fire
+    events:
+      - {action: process_access, host: WS-007, process_name: CollectGuestLogs.exe, process_path: 'C:\WindowsAzure\GuestAgent_2.7.41491.993\CollectGuestLogs.exe', target_process: lsass.exe, granted_access: "0x1fffff"}
+  - name: the same event three times in a row is folded into one alert (repeats are throttled, not paged again)
+    expect: fire
+    alerts: 1
+    events:
+      - {action: process_access, host: WS-007, process_name: procdump.exe, process_path: 'C:\Users\public\procdump.exe', target_process: lsass.exe, granted_access: "0x1fffff", repeat: 3, every: 10s}

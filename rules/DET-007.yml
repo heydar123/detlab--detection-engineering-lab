@@ -1,0 +1,82 @@
+id: DET-007
+title: Discovery commands launched from PowerShell or an Office app
+status: stable
+severity: medium
+attack:
+  tactic: Discovery
+  technique: T1033
+  technique_name: System Owner/User Discovery
+description: >
+  A reconnaissance command (whoami, net, nltest, systeminfo, quser) started by
+  PowerShell or an Office application. Once an attacker has code running on a
+  machine, one of the first things they do is ask who they are and what is
+  around them. The same commands typed into a normal command prompt by a
+  technician are common, so this rule only fires when the parent process is a
+  script host or an Office app. Related techniques are T1069.002 (Domain Groups,
+  for net group) and T1082 (System Information Discovery, for systeminfo).
+type: match
+filter:
+  process_name|in: [whoami.exe, net.exe, net1.exe, nltest.exe, systeminfo.exe, quser.exe]
+  parent_process|in: [powershell.exe, pwsh.exe, winword.exe, excel.exe, outlook.exe]
+entity_fields: [user, host]
+exclusions:
+  - match:
+      user: svc_backup
+      host: BACKUP-01
+    reason: Weekly inventory script on the backup server runs whoami and systeminfo from PowerShell (ticket IT-2231). Pinned to this user AND host.
+false_positives: >
+  Inventory and management scripts, administrators running one-liners from a
+  PowerShell window, login scripts.
+triage:
+  - What launched the parent process? An Office document or a browser download is a red flag.
+  - Did encoded PowerShell (DET-004) or a login after many failures (DET-005) happen on this host or user shortly before?
+  - Is this user normally an administrator who runs these commands?
+  - What did the same host run in the next 10 minutes? Discovery is usually followed by credential theft or lateral movement.
+response:
+  - Treat as part of a possible intrusion if another alert fired for the same user or host.
+  - Isolate the host if the chain of parent processes is not explained.
+  - Collect the process tree and command lines for the host.
+tests:
+  - name: whoami started by PowerShell fires
+    expect: fire
+    events:
+      - {action: process_create, user: k.lee, host: WS-004, process_name: whoami.exe, parent_process: powershell.exe, command_line: whoami.exe /all}
+  - name: net.exe started by Word fires
+    expect: fire
+    events:
+      - {action: process_create, user: k.lee, host: WS-004, process_name: net.exe, parent_process: winword.exe, command_line: net.exe user}
+  - name: whoami typed in a normal command prompt stays quiet
+    expect: no_fire
+    events:
+      - {action: process_create, user: it.admin, host: WS-001, process_name: whoami.exe, parent_process: cmd.exe, command_line: whoami.exe /all}
+  - name: the weekly inventory script on the backup server is excluded
+    expect: no_fire
+    events:
+      - {action: process_create, user: svc_backup, host: BACKUP-01, process_name: systeminfo.exe, parent_process: powershell.exe, command_line: systeminfo.exe}
+  - name: the same account on another host is not excluded
+    expect: fire
+    events:
+      - {action: process_create, user: svc_backup, host: WS-020, process_name: systeminfo.exe, parent_process: powershell.exe, command_line: systeminfo.exe}
+  - name: every listed discovery tool is caught when PowerShell starts it
+    expect: fire
+    alerts: 6
+    events:
+      - {action: process_create, user: k.lee, host: WS-101, process_name: whoami.exe, parent_process: powershell.exe, command_line: whoami.exe /priv}
+      - {action: process_create, user: k.lee, host: WS-102, process_name: net.exe, parent_process: powershell.exe, command_line: net.exe localgroup administrators}
+      - {action: process_create, user: k.lee, host: WS-103, process_name: net1.exe, parent_process: powershell.exe, command_line: net1.exe user}
+      - {action: process_create, user: k.lee, host: WS-104, process_name: nltest.exe, parent_process: powershell.exe, command_line: nltest.exe /dclist:corp}
+      - {action: process_create, user: k.lee, host: WS-105, process_name: systeminfo.exe, parent_process: powershell.exe, command_line: systeminfo.exe}
+      - {action: process_create, user: k.lee, host: WS-106, process_name: quser.exe, parent_process: powershell.exe, command_line: quser.exe}
+  - name: every listed parent program is caught when it starts whoami
+    expect: fire
+    alerts: 5
+    events:
+      - {action: process_create, user: k.lee, host: WS-111, process_name: whoami.exe, parent_process: powershell.exe, command_line: whoami.exe /all}
+      - {action: process_create, user: k.lee, host: WS-112, process_name: whoami.exe, parent_process: pwsh.exe, command_line: whoami.exe /all}
+      - {action: process_create, user: k.lee, host: WS-113, process_name: whoami.exe, parent_process: winword.exe, command_line: whoami.exe /all}
+      - {action: process_create, user: k.lee, host: WS-114, process_name: whoami.exe, parent_process: excel.exe, command_line: whoami.exe /all}
+      - {action: process_create, user: k.lee, host: WS-115, process_name: whoami.exe, parent_process: outlook.exe, command_line: whoami.exe /all}
+  - name: a program that is not a discovery tool, started by Word, stays quiet
+    expect: no_fire
+    events:
+      - {action: process_create, user: k.lee, host: WS-004, process_name: notepad.exe, parent_process: winword.exe, command_line: notepad.exe notes.txt}

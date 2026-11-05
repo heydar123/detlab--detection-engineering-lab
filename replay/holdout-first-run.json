@@ -1,0 +1,659 @@
+{
+  "what": "First run of the rules on the holdout datasets. Stored once; labels are added later, separately.",
+  "ran_at": "2026-11-04T20:45:07Z",
+  "python": "3.13.18",
+  "rules_fingerprint": "39fa78bac3cda635b33610f7716310577b27605099abf5ab6d67df8fe8d733aa",
+  "rule_fingerprints": {
+    "DET-001": "48ca9918ecce5c37ba96ffbc855e5ea190a7e798c51a7355c60675790fa7e31e",
+    "DET-002": "7604f40e2b88bf53c0b11120b17e83e09b8b5283abc774674a11eab72dc27c9d",
+    "DET-003": "ac111a2b2979bf3775c18fbc9224151412de34f3398584eb13ac25fe326c9b93",
+    "DET-004": "9cddcb97a88b55ccda090c7138b1f7c41558cd4b63e439ff67a1709ec1811242",
+    "DET-005": "32d4da6fb802589bf47d79d87fadf82b2d6e0f4df40e2f9d9a18a4af8f79dba3",
+    "DET-006": "c47eece965c00914e95fb1fdd82b4f5c51e186d1f67cafb090fc095acce9db9e",
+    "DET-007": "beef4f837a759477dcf644f79e111642794ad83866bfc956cf56e743fb0006c0",
+    "DET-008": "215e977e66dcf7f952bb5546033bfdbf8bc0ee1194186c7ae01efa9312af058c",
+    "DET-009": "706740730476ec0ceffc14d468795724a769c85ac69efa327635ae2b88c51333",
+    "DET-010": "f337dffc6a1ee3c6c9c29541bf752cf25ffec17a3fd6048366e79de3ce5c1187",
+    "DET-011": "8cacd246518dcba90d9102eff2ac8175c06323a911ecea6c6a2d5e7f4023e42c",
+    "DET-012": "2c867b92b18b0a41695eece7a3da7f2d56c3428e6d9a0654a2555915d19ab0f6",
+    "DET-013": "e108965f6922028605ff6f5d0115b8eec7d0c312535fafe46b52a887197d49d4",
+    "DET-014": "e78eb6303db26224e2f901aa43310c4b93fe4d728f19a84bad20713debcb33c5",
+    "DET-015": "ebb67adfe83c13ba22c20e063201f13db0c0b9c786ed8a55e9cb53bd8fa25406",
+    "DET-016": "6f39607785c4bcf4a47d1ca64c69c66c727088e7edd305869fb66224464dc2c9",
+    "DET-017": "dd43fc9fe9e39a0e13d2f2fb8260dce293a50dadd29f5248249bd5291a813655",
+    "DET-018": "8d9d5359cc71e87bd924b6d2640ee8d764761c67a1f40761f07f253b97030d12",
+    "DET-019": "1a5eace6e47eea56cb4520af9121a6d510dbc42ddfaefde69b0d5c4365d2ae52",
+    "DET-020": "1a7163edcbebc20e6d985d9cedad25c8ff13f1e2cad3580e71a503c6307d4af4",
+    "DET-021": "074b914887df225f80411ad0941051aceea91e488dbe016e799c5e9b5b006fb4",
+    "DET-022": "eeb5a854713fb8ea63a779cca5e4522012db7ea0e358323e830cacad22de347c",
+    "DET-023": "89a70c225a57d93f44f99afea0bb41ed99b58dc4ed0d8592776e51c06e42e2ed",
+    "DET-024": "81470c79657b10389bddad12b724b0950b35d5ea969127fab88554abad11c0e4",
+    "DET-025": "e8645a915b366aa6b79821475314a4bf30f682fa0a06bf82a988329a9e1a0fed",
+    "DET-026": "ab920df13b234e290a65b1774ccf18c81837fd25efbe12d14c90fe3adeea3ffa",
+    "DET-027": "130c107b906a75e2e582a8730a719795fcbbc2eeaa757a09f175dbf276e47bf5",
+    "DET-028": "445f495541b5a3882ee491794f69ade0f70ff800eccd6e0e3975500f475244df",
+    "DET-029": "1b4be7cd8499651c8a08000106e2b5e71c60f6c678843f4c960ededacd644ed4",
+    "DET-030": "b253e09c2737850db166dc07166a84fbe287f4a9076bb900245f48a3f4054d3e",
+    "DET-031": "0558a35079b64ca43306f173bf52e800c0002aa61ef20ed5805b6399a3f54ebd",
+    "DET-032": "ae07be8aea9b810bd1f149858b554de11b0de25e2d2eb22fc0eb6e0a620fb52e"
+  },
+  "rule_count": 32,
+  "manifest_sha256": "745c9f15473f19b4ae705ecca3237fc61344e2ac9d8e7a9d31a954a53ed28b88",
+  "summary": {
+    "datasets": 12,
+    "datasets_fully_hit": 10,
+    "datasets_with_any_hit": 10,
+    "expectations": 12,
+    "expectations_hit": 10,
+    "expectations_no_data": 0,
+    "expectations_missed": 2,
+    "alerts": 27,
+    "labels": {
+      "attack": 0,
+      "other": 0,
+      "unlabeled": 27
+    },
+    "attack_share": null,
+    "events": 25150
+  },
+  "datasets": [
+    {
+      "id": "auditpol_system_user_auditpolicy_modification",
+      "title": "Disabling Windows Event Logging via Audit Policy Modification",
+      "events": 11743,
+      "expected": [
+        "DET-017"
+      ],
+      "fired": [
+        "DET-017"
+      ],
+      "hit": [
+        "DET-017"
+      ],
+      "missed": [],
+      "no_data": [],
+      "other_rules": [],
+      "alerts": [
+        {
+          "rule_id": "DET-017",
+          "entity": {
+            "user": null,
+            "host": "pedro-computer"
+          },
+          "first_ts": "2022-08-18T06:55:56Z",
+          "last_ts": "2022-08-18T06:55:56Z",
+          "events": 1,
+          "summary": "Event log cleared or audit policy weakened (user=None, host=pedro-computer)"
+        },
+        {
+          "rule_id": "DET-017",
+          "entity": {
+            "user": "pedro-admin",
+            "host": "pedro-computer"
+          },
+          "first_ts": "2022-08-18T06:57:16Z",
+          "last_ts": "2022-08-18T06:58:42Z",
+          "events": 69,
+          "summary": "Event log cleared or audit policy weakened (user=pedro-admin, host=pedro-computer), repeated 69 times"
+        }
+      ]
+    },
+    {
+      "id": "cmd_bitsadmin_download_psh_script",
+      "title": "Bitsadmin Download Malicious File",
+      "events": 134,
+      "expected": [
+        "DET-016"
+      ],
+      "fired": [
+        "DET-016",
+        "DET-017"
+      ],
+      "hit": [
+        "DET-016"
+      ],
+      "missed": [],
+      "no_data": [],
+      "other_rules": [
+        "DET-017"
+      ],
+      "alerts": [
+        {
+          "rule_id": "DET-017",
+          "entity": {
+            "user": null,
+            "host": "WORKSTATION5"
+          },
+          "first_ts": "2020-10-23T02:36:40Z",
+          "last_ts": "2020-10-23T02:36:40Z",
+          "events": 3,
+          "summary": "Event log cleared or audit policy weakened (user=None, host=WORKSTATION5), repeated 3 times"
+        },
+        {
+          "rule_id": "DET-016",
+          "entity": {
+            "user": "wardog",
+            "host": "WORKSTATION5",
+            "process_name": "bitsadmin.exe"
+          },
+          "first_ts": "2020-10-23T02:36:43Z",
+          "last_ts": "2020-10-23T02:36:43Z",
+          "events": 1,
+          "summary": "Signed Windows tool used to run remote or script code (mshta, regsvr32, InstallUtil, cmstp, bitsadmin, certutil) (user=wardog, host=WORKSTATION5, process_name=bitsadmin.exe)"
+        }
+      ]
+    },
+    {
+      "id": "cmd_lsass_memory_dumpert_syscalls",
+      "title": "Lsass Memory Dump via Syscalls",
+      "events": 71,
+      "expected": [
+        "DET-009"
+      ],
+      "fired": [
+        "DET-009",
+        "DET-017"
+      ],
+      "hit": [
+        "DET-009"
+      ],
+      "missed": [],
+      "no_data": [],
+      "other_rules": [
+        "DET-017"
+      ],
+      "alerts": [
+        {
+          "rule_id": "DET-017",
+          "entity": {
+            "user": null,
+            "host": "WORKSTATION5"
+          },
+          "first_ts": "2020-10-18T10:56:05Z",
+          "last_ts": "2020-10-18T10:56:05Z",
+          "events": 1,
+          "summary": "Event log cleared or audit policy weakened (user=None, host=WORKSTATION5)"
+        },
+        {
+          "rule_id": "DET-009",
+          "entity": {
+            "host": "WORKSTATION5",
+            "process_name": "Outflank-Dumpert.exe"
+          },
+          "first_ts": "2020-10-18T10:56:14Z",
+          "last_ts": "2020-10-18T10:56:14Z",
+          "events": 2,
+          "summary": "LSASS memory opened by an unexpected program (host=WORKSTATION5, process_name=Outflank-Dumpert.exe), repeated 2 times"
+        }
+      ]
+    },
+    {
+      "id": "covenant_installutil",
+      "title": "Covenant ShellCmd InstallUtil",
+      "events": 882,
+      "expected": [
+        "DET-016"
+      ],
+      "fired": [
+        "DET-016"
+      ],
+      "hit": [
+        "DET-016"
+      ],
+      "missed": [],
+      "no_data": [],
+      "other_rules": [],
+      "alerts": [
+        {
+          "rule_id": "DET-016",
+          "entity": {
+            "user": "pgustavo",
+            "host": "WORKSTATION5.theshire.local",
+            "process_name": "InstallUtil.exe"
+          },
+          "first_ts": "2020-09-20T01:18:13Z",
+          "last_ts": "2020-09-20T01:18:13Z",
+          "events": 1,
+          "summary": "Signed Windows tool used to run remote or script code (mshta, regsvr32, InstallUtil, cmstp, bitsadmin, certutil) (user=pgustavo, host=WORKSTATION5.theshire.local, process_name=InstallUtil.exe)"
+        }
+      ]
+    },
+    {
+      "id": "covenant_sharpsc_create_dcerpc_smb_svcctl",
+      "title": "Covenant SharpSC Create",
+      "events": 1900,
+      "expected": [
+        "DET-012"
+      ],
+      "fired": [],
+      "hit": [],
+      "missed": [
+        "DET-012"
+      ],
+      "no_data": [],
+      "other_rules": [],
+      "alerts": []
+    },
+    {
+      "id": "empire_psexec_dcerpc_tcp_svcctl",
+      "title": "Empire Invoke PsExec",
+      "events": 1828,
+      "expected": [
+        "DET-012"
+      ],
+      "fired": [
+        "DET-004",
+        "DET-007",
+        "DET-012",
+        "DET-021"
+      ],
+      "hit": [
+        "DET-012"
+      ],
+      "missed": [],
+      "no_data": [],
+      "other_rules": [
+        "DET-004",
+        "DET-007",
+        "DET-021"
+      ],
+      "alerts": [
+        {
+          "rule_id": "DET-004",
+          "entity": {
+            "user": "SYSTEM",
+            "host": "WORKSTATION6.theshire.local"
+          },
+          "first_ts": "2020-09-20T16:16:57Z",
+          "last_ts": "2020-09-20T16:16:57Z",
+          "events": 1,
+          "summary": "Encoded PowerShell command line (user=SYSTEM, host=WORKSTATION6.theshire.local)"
+        },
+        {
+          "rule_id": "DET-012",
+          "entity": {
+            "host": "WORKSTATION6.theshire.local",
+            "service_name": "Updater",
+            "user": "pgustavo"
+          },
+          "first_ts": "2020-09-20T16:16:58Z",
+          "last_ts": "2020-09-20T16:16:58Z",
+          "events": 1,
+          "summary": "Service installed that runs a shell, a script host, or a file from an admin share (host=WORKSTATION6.theshire.local, service_name=Updater, user=pgustavo)"
+        },
+        {
+          "rule_id": "DET-021",
+          "entity": {
+            "host": "WORKSTATION6.theshire.local"
+          },
+          "first_ts": "2020-09-20T16:17:01Z",
+          "last_ts": "2020-09-20T16:17:01Z",
+          "events": 1,
+          "summary": "Suspicious PowerShell script text (decode-and-run, download-and-run, credential tools, AMSI tampering) (host=WORKSTATION6.theshire.local)"
+        },
+        {
+          "rule_id": "DET-007",
+          "entity": {
+            "user": "SYSTEM",
+            "host": "WORKSTATION6.theshire.local"
+          },
+          "first_ts": "2020-09-20T16:17:19Z",
+          "last_ts": "2020-09-20T16:17:19Z",
+          "events": 1,
+          "summary": "Discovery commands launched from PowerShell or an Office app (user=SYSTEM, host=WORKSTATION6.theshire.local)"
+        }
+      ]
+    },
+    {
+      "id": "empire_schtasks_creation_standard_user",
+      "title": "Empire Userland Scheduled Tasks",
+      "events": 624,
+      "expected": [
+        "DET-013"
+      ],
+      "fired": [
+        "DET-013"
+      ],
+      "hit": [
+        "DET-013"
+      ],
+      "missed": [],
+      "no_data": [],
+      "other_rules": [],
+      "alerts": [
+        {
+          "rule_id": "DET-013",
+          "entity": {
+            "user": "pgustavo",
+            "host": "WORKSTATION5.theshire.local"
+          },
+          "first_ts": "2020-09-21T07:15:45Z",
+          "last_ts": "2020-09-21T07:15:45Z",
+          "events": 1,
+          "summary": "Scheduled task created with a script, shell, or user-folder action (user=pgustavo, host=WORKSTATION5.theshire.local)"
+        }
+      ]
+    },
+    {
+      "id": "empire_shell_net_local_users",
+      "title": "Empire Net Local Users",
+      "events": 886,
+      "expected": [
+        "DET-007"
+      ],
+      "fired": [
+        "DET-007"
+      ],
+      "hit": [
+        "DET-007"
+      ],
+      "missed": [],
+      "no_data": [],
+      "other_rules": [],
+      "alerts": [
+        {
+          "rule_id": "DET-007",
+          "entity": {
+            "user": "pgustavo",
+            "host": "WORKSTATION5.theshire.local"
+          },
+          "first_ts": "2020-09-21T23:26:21Z",
+          "last_ts": "2020-09-21T23:26:21Z",
+          "events": 1,
+          "summary": "Discovery commands launched from PowerShell or an Office app (user=pgustavo, host=WORKSTATION5.theshire.local)"
+        }
+      ]
+    },
+    {
+      "id": "empire_shell_reg_dump_sam",
+      "title": "Empire Reg Dump SAM Hive",
+      "events": 421,
+      "expected": [
+        "DET-010"
+      ],
+      "fired": [
+        "DET-010"
+      ],
+      "hit": [
+        "DET-010"
+      ],
+      "missed": [],
+      "no_data": [],
+      "other_rules": [],
+      "alerts": [
+        {
+          "rule_id": "DET-010",
+          "entity": {
+            "user": "pgustavo",
+            "host": "WORKSTATION5.theshire.local",
+            "process_name": "reg.exe"
+          },
+          "first_ts": "2020-09-22T08:28:41Z",
+          "last_ts": "2020-09-22T08:28:41Z",
+          "events": 1,
+          "summary": "Credential-dumping command (registry hives, NTDS.dit, comsvcs, ProcDump) (user=pgustavo, host=WORKSTATION5.theshire.local, process_name=reg.exe)"
+        }
+      ]
+    },
+    {
+      "id": "empire_smbexec_dcerpc_smb_svcctl",
+      "title": "Empire Invoke SMBExec",
+      "events": 4880,
+      "expected": [
+        "DET-012"
+      ],
+      "fired": [
+        "DET-004",
+        "DET-007",
+        "DET-009",
+        "DET-012",
+        "DET-021"
+      ],
+      "hit": [
+        "DET-012"
+      ],
+      "missed": [],
+      "no_data": [],
+      "other_rules": [
+        "DET-004",
+        "DET-007",
+        "DET-009",
+        "DET-021"
+      ],
+      "alerts": [
+        {
+          "rule_id": "DET-012",
+          "entity": {
+            "host": "WORKSTATION6.theshire.local",
+            "service_name": "PGUJLOAKFQFVOMHGFQPX",
+            "user": "pgustavo"
+          },
+          "first_ts": "2020-09-20T06:57:48Z",
+          "last_ts": "2020-09-20T06:57:48Z",
+          "events": 1,
+          "summary": "Service installed that runs a shell, a script host, or a file from an admin share (host=WORKSTATION6.theshire.local, service_name=PGUJLOAKFQFVOMHGFQPX, user=pgustavo)"
+        },
+        {
+          "rule_id": "DET-004",
+          "entity": {
+            "user": "SYSTEM",
+            "host": "WORKSTATION6.theshire.local"
+          },
+          "first_ts": "2020-09-20T06:57:49Z",
+          "last_ts": "2020-09-20T06:57:49Z",
+          "events": 1,
+          "summary": "Encoded PowerShell command line (user=SYSTEM, host=WORKSTATION6.theshire.local)"
+        },
+        {
+          "rule_id": "DET-021",
+          "entity": {
+            "host": "WORKSTATION6.theshire.local"
+          },
+          "first_ts": "2020-09-20T06:57:49Z",
+          "last_ts": "2020-09-20T06:57:49Z",
+          "events": 1,
+          "summary": "Suspicious PowerShell script text (decode-and-run, download-and-run, credential tools, AMSI tampering) (host=WORKSTATION6.theshire.local)"
+        },
+        {
+          "rule_id": "DET-009",
+          "entity": {
+            "host": "WORKSTATION5.theshire.local",
+            "process_name": "CollectGuestLogs.exe"
+          },
+          "first_ts": "2020-09-20T06:58:01Z",
+          "last_ts": "2020-09-20T06:58:01Z",
+          "events": 1,
+          "summary": "LSASS memory opened by an unexpected program (host=WORKSTATION5.theshire.local, process_name=CollectGuestLogs.exe)"
+        },
+        {
+          "rule_id": "DET-007",
+          "entity": {
+            "user": "SYSTEM",
+            "host": "WORKSTATION6.theshire.local"
+          },
+          "first_ts": "2020-09-20T06:58:06Z",
+          "last_ts": "2020-09-20T06:58:06Z",
+          "events": 1,
+          "summary": "Discovery commands launched from PowerShell or an Office app (user=SYSTEM, host=WORKSTATION6.theshire.local)"
+        }
+      ]
+    },
+    {
+      "id": "empire_uac_shellapi_fodhelper",
+      "title": "Invoke BypassUAC FodHelper",
+      "events": 1166,
+      "expected": [
+        "DET-015"
+      ],
+      "fired": [
+        "DET-004",
+        "DET-007",
+        "DET-021"
+      ],
+      "hit": [],
+      "missed": [
+        "DET-015"
+      ],
+      "no_data": [],
+      "other_rules": [
+        "DET-004",
+        "DET-007",
+        "DET-021"
+      ],
+      "alerts": [
+        {
+          "rule_id": "DET-007",
+          "entity": {
+            "user": "pgustavo",
+            "host": "WORKSTATION5.theshire.local"
+          },
+          "first_ts": "2020-09-04T07:30:13Z",
+          "last_ts": "2020-09-04T07:30:13Z",
+          "events": 1,
+          "summary": "Discovery commands launched from PowerShell or an Office app (user=pgustavo, host=WORKSTATION5.theshire.local)"
+        },
+        {
+          "rule_id": "DET-007",
+          "entity": {
+            "user": "pgustavo",
+            "host": "WORKSTATION5.theshire.local"
+          },
+          "first_ts": "2020-09-04T07:30:13Z",
+          "last_ts": "2020-09-04T07:30:13Z",
+          "events": 1,
+          "summary": "Discovery commands launched from PowerShell or an Office app (user=pgustavo, host=WORKSTATION5.theshire.local)"
+        },
+        {
+          "rule_id": "DET-004",
+          "entity": {
+            "user": "pgustavo",
+            "host": "WORKSTATION5.theshire.local"
+          },
+          "first_ts": "2020-09-04T07:30:17Z",
+          "last_ts": "2020-09-04T07:30:17Z",
+          "events": 1,
+          "summary": "Encoded PowerShell command line (user=pgustavo, host=WORKSTATION5.theshire.local)"
+        },
+        {
+          "rule_id": "DET-021",
+          "entity": {
+            "host": "WORKSTATION5.theshire.local"
+          },
+          "first_ts": "2020-09-04T07:30:17Z",
+          "last_ts": "2020-09-04T07:30:17Z",
+          "events": 1,
+          "summary": "Suspicious PowerShell script text (decode-and-run, download-and-run, credential tools, AMSI tampering) (host=WORKSTATION5.theshire.local)"
+        },
+        {
+          "rule_id": "DET-007",
+          "entity": {
+            "user": "pgustavo",
+            "host": "WORKSTATION5.theshire.local"
+          },
+          "first_ts": "2020-09-04T07:30:55Z",
+          "last_ts": "2020-09-04T07:30:55Z",
+          "events": 1,
+          "summary": "Discovery commands launched from PowerShell or an Office app (user=pgustavo, host=WORKSTATION5.theshire.local)"
+        }
+      ]
+    },
+    {
+      "id": "psh_mshta_html_application_execution",
+      "title": "Mshta HTML Application (HTA) Execution",
+      "events": 615,
+      "expected": [
+        "DET-016"
+      ],
+      "fired": [
+        "DET-016",
+        "DET-017",
+        "DET-031"
+      ],
+      "hit": [
+        "DET-016"
+      ],
+      "missed": [],
+      "no_data": [],
+      "other_rules": [
+        "DET-017",
+        "DET-031"
+      ],
+      "alerts": [
+        {
+          "rule_id": "DET-017",
+          "entity": {
+            "user": null,
+            "host": "WORKSTATION5"
+          },
+          "first_ts": "2020-10-22T03:52:01Z",
+          "last_ts": "2020-10-22T03:52:01Z",
+          "events": 3,
+          "summary": "Event log cleared or audit policy weakened (user=None, host=WORKSTATION5), repeated 3 times"
+        },
+        {
+          "rule_id": "DET-031",
+          "entity": {
+            "host": "WORKSTATION5",
+            "process_name": "powershell.exe"
+          },
+          "first_ts": "2020-10-22T03:52:05Z",
+          "last_ts": "2020-10-22T03:52:05Z",
+          "events": 1,
+          "summary": "Program, shortcut or script dropped into a Startup folder (host=WORKSTATION5, process_name=powershell.exe)"
+        },
+        {
+          "rule_id": "DET-016",
+          "entity": {
+            "user": "wardog",
+            "host": "WORKSTATION5",
+            "process_name": "mshta.exe"
+          },
+          "first_ts": "2020-10-22T03:52:05Z",
+          "last_ts": "2020-10-22T03:52:05Z",
+          "events": 1,
+          "summary": "Signed Windows tool used to run remote or script code (mshta, regsvr32, InstallUtil, cmstp, bitsadmin, certutil) (user=wardog, host=WORKSTATION5, process_name=mshta.exe)"
+        }
+      ]
+    }
+  ],
+  "addenda": [
+    {
+      "added": "2026-11-04",
+      "what": "logic_fingerprints: a checksum per rule over the detection logic only (the ATT&CK labels, wording, tests and queries are left out). Computed from the rule files as they were when this first run was stored. Added because the ATT&CK labels of five rules were updated to ATT&CK v20 afterwards, which changes the file but not the detection. To check this, the rules were rebuilt as they were at the first run (DET-009 without its later exclusion, DET-015 with its first pattern) and replayed on the holdout datasets: they gave exactly the stored alerts. The alert results above are unchanged."
+    }
+  ],
+  "logic_fingerprints": {
+    "DET-001": "f45692cba445282551a64c99f911a21c4839327b6332d381715d4f8d9e89153c",
+    "DET-002": "df578f924f2b9582e694adaa14f691006991954c909e90005fa48a11d6011ee7",
+    "DET-003": "e4e727bfdf6cfff3325590c03bcd74ddcd3a53c7294c4c79f476436110a987ff",
+    "DET-004": "8a1a25325b7f6dc498f919bb7f9b98acd02ffe6b90c6a36560509adc21c70c1c",
+    "DET-005": "d5d6a5b51170e2eb94cf55703720700ea9b861118ad5417491540c47182d18cf",
+    "DET-006": "53263dd5c75df055feb7bbfed9662952d85391a58141db72577503ae8a579133",
+    "DET-007": "ee88bd619b32d11f6f4b06c3fb612f63e1fe6a9fde8a78b6628cc495c43fba48",
+    "DET-008": "44b3231fe7143b8f0865f0e9cf6691f865cd3498c63b9ff9807d4c21f0ac242f",
+    "DET-009": "b6c653be4fcfb4d6a5918adae3015881ee912616ca3cb5eba4833e2a113fe8ed",
+    "DET-010": "0835940849a5c1ebad2767c83c9d6249056d5a4bc8802fe52389b6bfbacda6de",
+    "DET-011": "67a9416882eb3f8b00996677fb47846244ad60d64018ce415ee8e7400481b64f",
+    "DET-012": "01dd93c9dd3f9e70bc83492ba9e6f00d304f542385574d0324a09e3ce2acfaa4",
+    "DET-013": "b1dfcad8eefedafdc46c5a8f193c51694665968fbc59101c792162d1cb358073",
+    "DET-014": "907b8e63391db3087a876b3d12a2e7b86adde3a49248f183c9de149384189d40",
+    "DET-015": "c7cca86ee082de70e6630dc16e2ddaafc925cd2ae67b4ab8ea1ce7d4263cf936",
+    "DET-016": "03f0dc06f838085d94ce46b9598f3de182c097c2b29a4d4aa78d123aa4f65f8e",
+    "DET-017": "bfcf796d27765b7978f856b920cd92b1740e30ae6d0dd5002aca8d26cc418502",
+    "DET-018": "ecf7d9fca254e79bec30431fbf0aa206d351d6b22250ca2bcac0e970e87d1c36",
+    "DET-019": "d9862c3047c8d88ce207a14d01319f3fae6dbf41084a0aa055d7e15bdc0538f6",
+    "DET-020": "7113385f750861494b8549a0cceac354fc55ad3e02edaab44fec4110c339541a",
+    "DET-021": "d589c36bc7e9f5431efc4b923ccbf60495470c49fe703be9575c0001144ce401",
+    "DET-022": "26d84108aaff23d1d85c58ae4edeb3830bba659ca34baa8661a7f89526c84a56",
+    "DET-023": "0ab714eddb7aaf79a5d13890e72e378fa5b7df19b44fa72ec9d3562ef5fc5c0f",
+    "DET-024": "0141ddad84bc84170a69d5cba2d2bbc8c4ade9e9835d42512855bc4b3321c90c",
+    "DET-025": "da66c1489a6e1a0f81ded1e7f8c18fff65ad93536438388409b692cad8fa6bf6",
+    "DET-026": "a191b0bedc99412135e1d960571c0d4cf68281cdc6d50c66e825b528cc3f91cd",
+    "DET-027": "f5e74d9bd0c9993847b6d6c64e57f44742e666306fe442cee0661ace9ac01ea8",
+    "DET-028": "04fd4fedc00fb83352a0ecd6526bf370c27f099269e138e60bdf5b9d1ba5e4d9",
+    "DET-029": "129251187b5abd8f6643a157a3902df23ea366505d029acb5cc976b1ce74d85c",
+    "DET-030": "df7c361cbd9aefed8dd3699065e699d38f7bea66ab3d37809df7574b90e5d808",
+    "DET-031": "ff33539bb80409d397f53067336310b5995bb9fb140db362956bb688193f4c81",
+    "DET-032": "d9cdc59058ee446bfe335d208335392888096187bfeb0b73def1e526eb844c48"
+  }
+}

@@ -1,0 +1,88 @@
+id: DET-005
+title: Possible account compromise - many failures followed by a success
+status: stable
+severity: critical
+attack:
+  tactic: Credential Access
+  technique: T1110
+  technique_name: Brute Force
+description: >
+  10 or more failed logins and then a successful login for the same account from
+  the same source IP inside 15 minutes. A brute force or spray attempt that
+  worked looks exactly like this.
+type: fail_then_success
+failure_filter:
+  action: login
+  outcome: failure
+success_filter:
+  action: login
+  outcome: success
+group_by: [user, src_ip]
+window_seconds: 900
+min_failures: 10
+false_positives: >
+  A user who forgot a password and tried many times (rare above 10), an
+  automation job with an expired credential that was just fixed.
+triage:
+  - Treat as a likely compromise until proven otherwise.
+  - Identify everything the account did after the successful login.
+  - Check for new MFA registrations, mailbox rules, or privilege changes after the login.
+response:
+  - Disable the account or force a password reset and revoke all sessions immediately.
+  - Isolate any host the account logged in to.
+  - "Hunt for follow-on activity: new processes (DET-004) and group changes (DET-006)."
+tests:
+  - name: 12 failures then a success from the same address fire
+    expect: fire
+    events:
+      - {action: login, outcome: failure, user: d.okafor, src_ip: 203.0.113.77, country: BR, service: rdp, repeat: 12, every: 9s}
+      - {action: login, outcome: success, user: d.okafor, src_ip: 203.0.113.77, country: BR, service: rdp}
+  - name: three typos then a success stay quiet
+    expect: no_fire
+    events:
+      - {action: login, outcome: failure, user: a.nguyen, src_ip: 198.51.100.20, country: US, service: o365, repeat: 3, every: 8s}
+      - {action: login, outcome: success, user: a.nguyen, src_ip: 198.51.100.20, country: US, service: o365}
+  - name: a success from a different address does not count
+    expect: no_fire
+    events:
+      - {action: login, outcome: failure, user: d.okafor, src_ip: 203.0.113.77, country: BR, service: rdp, repeat: 12, every: 9s}
+      - {action: login, outcome: success, user: d.okafor, src_ip: 198.51.100.30, country: US, service: rdp}
+  - name: failures that are too old do not count
+    expect: no_fire
+    events:
+      - {action: login, outcome: failure, user: d.okafor, src_ip: 203.0.113.77, country: BR, service: rdp, repeat: 12, every: 9s}
+      - {at: 2h, action: login, outcome: success, user: d.okafor, src_ip: 203.0.113.77, country: BR, service: rdp}
+  - name: exactly 10 failures then a success fire (the minimum itself counts)
+    expect: fire
+    events:
+      - {action: login, outcome: failure, user: d.okafor, src_ip: 203.0.113.77, country: BR, service: rdp, repeat: 10, every: 9s}
+      - {action: login, outcome: success, user: d.okafor, src_ip: 203.0.113.77, country: BR, service: rdp}
+  - name: 9 failures then a success are one short
+    expect: no_fire
+    events:
+      - {action: login, outcome: failure, user: d.okafor, src_ip: 203.0.113.77, country: BR, service: rdp, repeat: 9, every: 9s}
+      - {action: login, outcome: success, user: d.okafor, src_ip: 203.0.113.77, country: BR, service: rdp}
+  - name: 14 failures and no success stay quiet
+    expect: no_fire
+    events:
+      - {action: login, outcome: failure, user: d.okafor, src_ip: 203.0.113.77, country: BR, service: rdp, repeat: 14, every: 9s}
+  - name: 12 failures then a sign-in that is still waiting for MFA stay quiet (only a real success counts)
+    expect: no_fire
+    events:
+      - {action: login, outcome: failure, user: d.okafor, src_ip: 203.0.113.77, country: BR, service: rdp, repeat: 12, every: 9s}
+      - {action: login, outcome: interrupted, user: d.okafor, src_ip: 203.0.113.77, country: BR, service: rdp}
+  - name: 10 failures then a success exactly 15 minutes after the first failure still fire (the window edge counts)
+    expect: fire
+    events:
+      - {action: login, outcome: failure, user: d.okafor, src_ip: 203.0.113.77, country: BR, service: rdp, repeat: 10, every: 1s}
+      - {at: 900s, action: login, outcome: success, user: d.okafor, src_ip: 203.0.113.77, country: BR, service: rdp}
+  - name: the same sequence with the success a second later is outside the window
+    expect: no_fire
+    events:
+      - {action: login, outcome: failure, user: d.okafor, src_ip: 203.0.113.77, country: BR, service: rdp, repeat: 10, every: 1s}
+      - {at: 901s, action: login, outcome: success, user: d.okafor, src_ip: 203.0.113.77, country: BR, service: rdp}
+  - name: failures against one account do not combine with a success of another account from the same address
+    expect: no_fire
+    events:
+      - {action: login, outcome: failure, user: d.okafor, src_ip: 203.0.113.77, country: BR, service: rdp, repeat: 12, every: 9s}
+      - {action: login, outcome: success, user: k.lee, src_ip: 203.0.113.77, country: BR, service: rdp}

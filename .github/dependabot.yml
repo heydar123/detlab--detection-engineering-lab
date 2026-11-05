@@ -1,0 +1,8 @@
+# Keeps the pinned GitHub Actions in .github/workflows/ up to date. Each update arrives as a pull request that changes the
+# commit hash and the version comment together.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

@@ -1,0 +1,81 @@
+id: DET-025
+title: MFA fatigue - many refused or ignored prompts, then an approval
+status: experimental
+severity: high
+attack:
+  tactic: Credential Access
+  technique: T1621
+  technique_name: Multi-Factor Authentication Request Generation
+description: >
+  At least 5 sign-in prompts were denied or ignored for one person within 30 minutes, and then one was
+  approved. An attacker who already knows the password keeps triggering push prompts until the tired or
+  confused person taps Approve. The rule needs the approval at the end, because that is the moment the
+  attacker gets in. Prompts spread over more than 30 minutes are not joined together; see EV-13.
+type: fail_then_success
+failure_filter:
+  action: mfa_prompt
+  outcome|in: [denied, timeout]
+success_filter:
+  action: mfa_prompt
+  outcome: approved
+group_by: [user]
+window_seconds: 1800
+min_failures: 5
+false_positives: >
+  A person with a broken phone or a bad connection who retries many times, or a prompt sent to a shared device.
+triage:
+  - Ask the person (out of band) whether they started those sign-ins.
+  - Where did the sign-in come from (address, country, device)? Was it the person's usual place?
+  - What did the account do after the approval (mailbox rules, new devices, file downloads)?
+response:
+  - Revoke the sessions and reset the password if the person did not start the sign-in.
+  - Move the person to number-matching or phishing-resistant sign-in.
+tests:
+  - name: 8 ignored prompts then an approval fire
+    expect: fire
+    events:
+      - {action: mfa_prompt, user: r.patel, outcome: timeout, method: push, src_ip: 203.0.113.140, country: RO, repeat: 8, every: 60s}
+      - {action: mfa_prompt, user: r.patel, outcome: approved, method: push, src_ip: 203.0.113.140, country: RO}
+  - name: exactly 5 denied prompts then an approval fire
+    expect: fire
+    events:
+      - {action: mfa_prompt, user: r.patel, outcome: denied, method: push, repeat: 5, every: 30s}
+      - {action: mfa_prompt, user: r.patel, outcome: approved, method: push}
+  - name: 4 denied prompts then an approval stay under the threshold
+    expect: no_fire
+    events:
+      - {action: mfa_prompt, user: r.patel, outcome: denied, method: push, repeat: 4, every: 30s}
+      - {action: mfa_prompt, user: r.patel, outcome: approved, method: push}
+  - name: many ignored prompts with no approval stay quiet
+    expect: no_fire
+    events:
+      - {action: mfa_prompt, user: r.patel, outcome: timeout, method: push, repeat: 12, every: 60s}
+  - name: an approval more than 30 minutes after the failures stays quiet
+    expect: no_fire
+    events:
+      - {action: mfa_prompt, user: r.patel, outcome: denied, method: push, repeat: 6, every: 10s}
+      - {action: mfa_prompt, user: r.patel, outcome: approved, method: push, at: 45m}
+  - name: failures of one person do not combine with the approval of another
+    expect: no_fire
+    events:
+      - {action: mfa_prompt, user: r.patel, outcome: denied, method: push, repeat: 8, every: 30s}
+      - {action: mfa_prompt, user: k.lee, outcome: approved, method: push}
+  - name: 8 ignored prompts and no approval stay quiet
+    expect: no_fire
+    events:
+      - {action: mfa_prompt, user: r.patel, outcome: timeout, method: push, src_ip: 203.0.113.140, country: RO, repeat: 8, every: 60s}
+  - name: 8 ignored prompts then a prompt still waiting for an answer stay quiet (only an approval counts)
+    expect: no_fire
+    events:
+      - {action: mfa_prompt, user: r.patel, outcome: timeout, method: push, src_ip: 203.0.113.140, country: RO, repeat: 8, every: 60s}
+      - {action: mfa_prompt, user: r.patel, outcome: pending, method: push, src_ip: 203.0.113.140, country: RO}
+  - name: 5 denied prompts then an approval exactly 30 minutes after the first one still fire (the window edge counts)
+    expect: fire
+    events:
+      - {action: mfa_prompt, user: r.patel, outcome: denied, method: push, repeat: 5, every: 1s}
+      - {at: 1800s, action: mfa_prompt, user: r.patel, outcome: approved, method: push}
+  - name: the same sequence with the approval a second later is outside the window
+    expect: no_fire
+    events:
+      - {action: mfa_prompt, user: r.patel, outcome: denied, method: push, repeat: 5, every: 1s}
+      - {at: 1801s, action: mfa_prompt, user: r.patel, outcome: approved, method: push}

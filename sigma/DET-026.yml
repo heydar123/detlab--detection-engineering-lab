@@ -1,0 +1,50 @@
+title: 'Network logon fan-out - one account signs in to many computers quickly'
+id: '68073369-b77f-5446-8f74-5536e13193f8'
+name: detlab_det_026
+status: experimental
+description: 'One account signed in over the network (logon type 3) to at least 8 different computers from the same source inside 15 minutes. People rarely touch that many machines that fast. Attackers who stole an account use it to spread, and automated tools sweep the network the same way. A sweep that touches fewer than 8 machines in 15 minutes is not caught.'
+author: 'Detection Lab'
+date: '2026-11-04'
+tags:
+  - attack.lateral-movement
+  - attack.t1021
+  - attack.t1078.002
+logsource:
+  product: windows
+  service: security
+detection:
+  selection_1:
+    EventID: 4624
+    LogonType: 3
+  condition: selection_1
+falsepositives:
+  - 'Vulnerability scanners, patch and inventory tools, backup software, and administrators using a jump host.'
+  - 'Known benign source at the lab site, not part of this export: The weekly credentialed vulnerability scan signs in to every server (change ticket SEC-1042). Pinned to the scan account AND the scanner address, so the same pattern from any other source still alerts.'
+level: high
+---
+title: 'Network logon fan-out - one account signs in to many computers quickly (correlation)'
+id: db89a8e6-1d06-5d48-9764-c43230dedcd3
+name: detlab_det_026_correlation
+status: experimental
+description: 'One account signed in over the network (logon type 3) to at least 8 different computers from the same source inside 15 minutes. People rarely touch that many machines that fast. Attackers who stole an account use it to spread, and automated tools sweep the network the same way. A sweep that touches fewer than 8 machines in 15 minutes is not caught.'
+author: 'Detection Lab'
+date: '2026-11-04'
+tags:
+  - attack.lateral-movement
+  - attack.t1021
+  - attack.t1078.002
+correlation:
+  type: value_count
+  rules:
+    - detlab_det_026
+  group-by:
+    - TargetUserName
+    - IpAddress
+  timespan: '15m'
+  condition:
+    gte: 8
+    field: Computer
+falsepositives:
+  - 'Vulnerability scanners, patch and inventory tools, backup software, and administrators using a jump host.'
+  - 'Known benign source at the lab site, not part of this export: The weekly credentialed vulnerability scan signs in to every server (change ticket SEC-1042). Pinned to the scan account AND the scanner address, so the same pattern from any other source still alerts.'
+level: high

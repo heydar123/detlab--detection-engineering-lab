@@ -1,0 +1,20 @@
+title: 'UAC bypass - per-user registry hijack of an auto-elevating program'
+id: '0d965195-1ee7-5737-a6d2-c7544ed32602'
+name: detlab_det_015
+status: experimental
+description: 'A per-user registry key that Windows consults before starting an auto-elevating program (fodhelper.exe, computerdefaults.exe, eventvwr.exe and similar) was written. The attacker plants a command there, starts the Windows program, and the command runs with administrator rights without a prompt. Software almost never writes these keys under a user''s own hive, so the key itself is the signal. Windows logs the per-user classes hive under two names: HKCU\Software\Classes (or HKU\<SID>\Software\Classes) and HKU\<SID>_Classes. The rule reads both. The first version read only the first form and missed a real fodhelper recording that used the second (found by the holdout run, fixed afterwards).'
+author: 'Detection Lab'
+date: '2026-11-04'
+tags:
+  - attack.privilege-escalation
+  - attack.t1548.002
+logsource:
+  category: registry_set
+  product: windows
+detection:
+  selection_1:
+    TargetObject|re|i: '^(hku\\[^\\]+_classes|(hku\\[^\\]+|hkcu)\\software\\classes)\\(ms-settings|mscfile|exefile|folder|ms-windows-store)\\shell\\(open|runas)\\command'
+  condition: selection_1
+falsepositives:
+  - 'Almost none. Some file-association tools write similar keys; check the writing program.'
+level: high

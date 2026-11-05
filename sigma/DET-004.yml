@@ -1,0 +1,24 @@
+title: 'Encoded PowerShell command line'
+id: '714e9abb-7bb1-5de4-bea8-22e0afc41428'
+name: detlab_det_004
+status: stable
+description: 'PowerShell started with an encoded command (-e, -ec, -enc, -EncodedCommand and every shorter spelling of it) followed by a long base64 string. Attackers use this to hide what they run; it is rare in normal desktop use. The spelling list follows TrustedSec''s published list of -EncodedCommand shorthands; it was not independently tested on a live host. The first version of this rule missed -ec and the longer partial spellings until the red-team test (EV-03) caught it. Known gap: a command line that builds the flag at runtime never contains the literal flag, so a pattern like this cannot see it (EV-06).'
+author: 'Detection Lab'
+date: '2026-11-04'
+tags:
+  - attack.execution
+  - attack.t1059.001
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_1:
+    Image|endswith:
+      - '\powershell.exe'
+      - '\pwsh.exe'
+    CommandLine|re|i: '\s-(e|ec|en|enc|enco|encod|encode|encoded|encodedc|encodedco|encodedcom|encodedcomm|encodedcomma|encodedcomman|encodedcommand)\s+[A-Za-z0-9+/=]{20,}'
+  condition: selection_1
+falsepositives:
+  - 'Management and backup software that encodes commands, some software deployment tools, administrators pasting one-liners.'
+  - 'Known benign source at the lab site, not part of this export: Nightly backup job launches PowerShell with an encoded command (ticket IT-2210). Pin to this user AND host.'
+level: high

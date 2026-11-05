@@ -1,0 +1,3 @@
+-- DET-031 query 1
+DeviceFileEvents
+| where FolderPath matches regex "(?i)\\\\start menu\\\\programs\\\\startup\\\\[^\\\\]+\\.(lnk|exe|dll|bat|cmd|vbs|vbe|js|jse|wsf|hta|ps1|scr)$"

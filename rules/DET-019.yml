@@ -1,0 +1,91 @@
+id: DET-019
+title: New account created (audit event or net user /add)
+status: experimental
+severity: medium
+attack:
+  tactic: Persistence
+  technique: T1136.001
+  technique_name: Create Account - Local Account
+  also: [T1136.002]
+description: >
+  A new local or domain account was created, either as a Windows audit event or by running "net user ... /add".
+  Attackers create their own account so they can come back even if the account they stole is reset. Creating
+  accounts is normal work for the help desk, so the only exclusion is the help desk's own onboarding pattern,
+  and it is deliberately narrow.
+type: match
+filter:
+  - action: user_create
+  - action: process_create
+    process_name,original_name|in: [net.exe, net1.exe]
+    command_line|regex: '(?i)^(?=.*\buser\b)(?=.*\s/add\b)(?!.*\b(localgroup|group)\b)'
+entity_fields: [user, host]
+suppress_seconds: 120
+exclusions:
+  - match:
+      user: it.admin
+      host: DC-01
+      target_user|regex: '^[a-z]\.[a-z]+$'
+    reason: Help desk onboarding creates domain accounts named first-initial.surname on the domain controller (process HR-114). Pinned to this admin, this host AND the naming pattern, so an account with an odd name still alerts. An attacker who copies the pattern while using this admin's login would be missed; see EV-12.
+false_positives: >
+  Help desk onboarding, lab machines that create test users.
+triage:
+  - Who created it, on which host, and does the name follow the naming standard?
+  - Was there an onboarding request? Did the account sign in, and from where?
+  - Was the account added to any group right after creation?
+response:
+  - Disable the account if there is no request for it.
+  - Review everything the creating account did in the surrounding hour.
+tests:
+  - name: a new account audit event fires
+    expect: fire
+    events:
+      - {action: user_create, user: wardog, host: WS-005, target_user: backdoor}
+  - name: net user /add fires
+    expect: fire
+    events:
+      - {action: process_create, user: wardog, host: WS-005, process_name: net.exe, parent_process: cmd.exe, command_line: 'net user backdoor P@ssw0rd1 /add'}
+  - name: net1 with /add before the name fires
+    expect: fire
+    events:
+      - {action: process_create, user: wardog, host: WS-005, process_name: net1.exe, parent_process: net.exe, command_line: 'C:\Windows\system32\net1 user /add backdoor P@ssw0rd1'}
+  - name: net localgroup add (a group change, not a new user) stays quiet here
+    expect: no_fire
+    events:
+      - {action: process_create, user: wardog, host: WS-005, process_name: net.exe, parent_process: cmd.exe, command_line: 'net localgroup administrators user1 /add'}
+  - name: net user only listing stays quiet
+    expect: no_fire
+    events:
+      - {action: process_create, user: it.admin, host: WS-001, process_name: net.exe, parent_process: cmd.exe, command_line: 'net user'}
+  - name: help desk onboarding on the domain controller is excluded
+    expect: no_fire
+    events:
+      - {action: user_create, user: it.admin, host: DC-01, target_user: n.valdez}
+  - name: the same admin creating an oddly named account still fires
+    expect: fire
+    events:
+      - {action: user_create, user: it.admin, host: DC-01, target_user: svc-backup2}
+  - name: a user created by the admin on another host still fires
+    expect: fire
+    events:
+      - {action: user_create, user: it.admin, host: WS-005, target_user: n.valdez}
+  - name: a renamed copy of net.exe is still caught through its original file name
+    expect: fire
+    events:
+      - {action: process_create, user: wardog, host: WS-005, process_name: n.exe, original_name: net.exe, parent_process: cmd.exe, command_line: 'n.exe user backdoor P@ssw0rd1 /add'}
+  - name: the same words typed into another program do not count
+    expect: no_fire
+    events:
+      - {action: process_create, user: k.lee, host: WS-004, process_name: notepad.exe, parent_process: explorer.exe, command_line: 'notepad.exe notes about net user bob Passw0rd /add'}
+  - name: adding a domain account to a local group is a group change, not a new account
+    expect: no_fire
+    events:
+      - {action: process_create, user: wardog, host: WS-005, process_name: net.exe, parent_process: cmd.exe, command_line: 'net localgroup administrators CORP\user /add'}
+  - name: net computer /add (a computer account) is not a new user
+    expect: no_fire
+    events:
+      - {action: process_create, user: wardog, host: WS-005, process_name: net.exe, parent_process: cmd.exe, command_line: 'net computer \\WS-099 /add'}
+  - name: the same event three times in a row is folded into one alert (repeats are throttled, not paged again)
+    expect: fire
+    alerts: 1
+    events:
+      - {action: user_create, user: wardog, host: WS-005, target_user: backdoor, repeat: 3, every: 10s}

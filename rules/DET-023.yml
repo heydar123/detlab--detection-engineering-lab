@@ -1,0 +1,87 @@
+id: DET-023
+title: Large outbound transfer to one external address
+status: experimental
+severity: high
+attack:
+  tactic: Exfiltration
+  technique: T1048
+  technique_name: Exfiltration Over Alternative Protocol
+  also: [T1041]
+description: >
+  One host sent at least 1 GiB (1,073,741,824 bytes) to the same external address inside one hour. After an
+  attacker collects data, it has to leave the network, and the volume is often the loudest signal. The rule adds
+  up the bytes sent over every connection in the window. Data sent slowly over days stays under the threshold;
+  see EV-08.
+type: sum_threshold
+filter:
+  action: network_connect
+  dst_scope: external
+group_by: [host, dst_ip]
+sum_field: bytes_out
+window_seconds: 3600
+threshold: 1073741824
+exclusions:
+  - match:
+      host: BACKUP-01
+      process_name: backupagent.exe
+      dst_ip: 192.0.2.180
+    reason: The nightly offsite backup uploads many gigabytes to the backup provider (ticket IT-2205). Pinned to the host, the backup program AND the provider address, so a large upload from the backup host to anywhere else still alerts.
+false_positives: >
+  Offsite backups, large software or video uploads, cloud synchronisation of big folders.
+triage:
+  - What program sent the data, and who was signed in?
+  - Is the destination a known business service? Check who owns the address.
+  - What was read right before the transfer (a share, a database, a mailbox)?
+response:
+  - Block the destination and isolate the host if the transfer is not expected.
+  - Work out what data left, using file access logs and the transfer record.
+  - Start the data breach process if the data was sensitive.
+tests:
+  - name: 12 uploads of 100 MB to one address in an hour fire
+    expect: fire
+    events:
+      - {action: network_connect, host: SRV-FILE-01, process_name: curl.exe, dst_ip: 203.0.113.88, dst_scope: external, bytes_out: 104857600, repeat: 12, every: 120s}
+  - name: exactly 1 GiB in one connection fires (the threshold itself counts)
+    expect: fire
+    events:
+      - {action: network_connect, host: SRV-FILE-01, process_name: curl.exe, dst_ip: 203.0.113.88, dst_scope: external, bytes_out: 1073741824}
+  - name: one byte under 1 GiB stays quiet
+    expect: no_fire
+    events:
+      - {action: network_connect, host: SRV-FILE-01, process_name: curl.exe, dst_ip: 203.0.113.88, dst_scope: external, bytes_out: 1073741823}
+  - name: a huge copy to an internal address stays quiet
+    expect: no_fire
+    events:
+      - {action: network_connect, host: SRV-FILE-01, process_name: robocopy.exe, dst_ip: 10.0.0.20, dst_scope: internal, bytes_out: 21474836480}
+  - name: 2.4 GiB spread over 4 hours never reaches 1 GiB inside one hour
+    expect: no_fire
+    events:
+      - {action: network_connect, host: SRV-FILE-01, process_name: curl.exe, dst_ip: 203.0.113.88, dst_scope: external, bytes_out: 419430400, repeat: 6, every: 50m}
+  - name: the offsite backup is excluded
+    expect: no_fire
+    events:
+      - {action: network_connect, host: BACKUP-01, process_name: backupagent.exe, dst_ip: 192.0.2.180, dst_scope: external, bytes_out: 5368709120, repeat: 4, every: 600s}
+  - name: the backup host sending the same volume somewhere else still fires
+    expect: fire
+    events:
+      - {action: network_connect, host: BACKUP-01, process_name: backupagent.exe, dst_ip: 203.0.113.88, dst_scope: external, bytes_out: 5368709120, repeat: 4, every: 600s}
+  - name: 1 GiB sent in two connections exactly one hour apart still fires (the window edge counts)
+    expect: fire
+    events:
+      - {action: network_connect, host: SRV-FILE-01, process_name: curl.exe, dst_ip: 203.0.113.88, dst_scope: external, bytes_out: 536870912}
+      - {at: 3600s, action: network_connect, host: SRV-FILE-01, process_name: curl.exe, dst_ip: 203.0.113.88, dst_scope: external, bytes_out: 536870912}
+  - name: the same two connections a second further apart do not add up
+    expect: no_fire
+    events:
+      - {action: network_connect, host: SRV-FILE-01, process_name: curl.exe, dst_ip: 203.0.113.88, dst_scope: external, bytes_out: 536870912}
+      - {at: 3601s, action: network_connect, host: SRV-FILE-01, process_name: curl.exe, dst_ip: 203.0.113.88, dst_scope: external, bytes_out: 536870912}
+  - name: two servers sending to the same address are counted per server (600 MiB each stays quiet)
+    expect: no_fire
+    events:
+      - {action: network_connect, host: SRV-FILE-01, process_name: curl.exe, dst_ip: 203.0.113.88, dst_scope: external, bytes_out: 629145600}
+      - {action: network_connect, host: SRV-FILE-02, process_name: curl.exe, dst_ip: 203.0.113.88, dst_scope: external, bytes_out: 629145600}
+  - name: one server sending to two addresses is counted per address (600 MiB each stays quiet)
+    expect: no_fire
+    events:
+      - {action: network_connect, host: SRV-FILE-01, process_name: curl.exe, dst_ip: 203.0.113.88, dst_scope: external, bytes_out: 629145600}
+      - {action: network_connect, host: SRV-FILE-01, process_name: curl.exe, dst_ip: 203.0.113.89, dst_scope: external, bytes_out: 629145600}

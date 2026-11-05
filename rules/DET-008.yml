@@ -1,0 +1,80 @@
+id: DET-008
+title: Slow password spray - one source failing against many accounts over 24 hours
+status: stable
+severity: high
+attack:
+  tactic: Credential Access
+  technique: T1110.003
+  technique_name: Password Spraying
+description: >
+  One source IP fails to log in to 12 or more distinct accounts inside 24 hours.
+  DET-002 catches fast sprays (10 accounts in 30 minutes). Attackers who know
+  about that window simply slow down, so this rule counts accounts over a much
+  longer period. A slow spray found by the red-team test (EV-02) is what led to
+  this rule.
+type: distinct_threshold
+filter:
+  action: login
+  outcome: failure
+group_by: [src_ip]
+distinct_field: user
+window_seconds: 86400
+threshold: 12
+exclusions:
+  - match:
+      src_ip: 10.0.5.50
+    reason: Approved weekly vulnerability scanner (change ticket SEC-1042). Review every quarter.
+false_positives: >
+  Vulnerability scanners, large NAT gateways or proxies that hide many real users
+  behind one IP, shared kiosks. A busy NAT gateway could trip a 24 hour window
+  that a 30 minute window would miss, so check this against real traffic before
+  trusting the threshold.
+triage:
+  - Pull every login (success and failure) from the source IP for the last 48 hours.
+  - Look for any account that succeeded from this IP. That account is the priority.
+  - Check whether the source is a known proxy, NAT gateway, or scanner.
+  - Compare against DET-002 for the same source, since a fast spray normally trips both.
+response:
+  - Block the source IP.
+  - Force a password reset and session revocation for any account that succeeded.
+  - Check legacy authentication protocols that bypass MFA and disable them where possible.
+tests:
+  - name: 14 accounts tried once each over seven hours fire
+    expect: fire
+    events:
+      - {action: login, outcome: failure, src_ip: 203.0.113.202, country: UA, service: o365, user: "user{i}", repeat: 14, every: 30m}
+  - name: only 11 accounts stays under the threshold
+    expect: no_fire
+    events:
+      - {action: login, outcome: failure, src_ip: 203.0.113.202, country: UA, service: o365, user: "user{i}", repeat: 11, every: 30m}
+  - name: 14 accounts spread over three days is too slow even for this rule
+    expect: no_fire
+    events:
+      - {action: login, outcome: failure, src_ip: 203.0.113.202, country: UA, service: o365, user: "user{i}", repeat: 14, every: 5h}
+  - name: the approved vulnerability scanner is excluded
+    expect: no_fire
+    events:
+      - {action: login, outcome: failure, src_ip: 10.0.5.50, country: US, service: ssh, user: "user{i}", repeat: 40, every: 3s}
+  - name: exactly 12 different accounts over a day is enough to fire (the threshold itself counts)
+    expect: fire
+    events:
+      - {action: login, outcome: failure, src_ip: 203.0.113.99, country: CN, service: o365, user: "user{i}", repeat: 12, every: 1h}
+  - name: 15 different accounts signing in successfully from one address do not count
+    expect: no_fire
+    events:
+      - {action: login, outcome: success, src_ip: 203.0.113.99, country: US, service: o365, user: "user{i}", repeat: 15, every: 1h}
+  - name: 12 different accounts from the first to the last exactly 24 hours apart still fire (the window edge counts)
+    expect: fire
+    events:
+      - {action: login, outcome: failure, src_ip: 203.0.113.202, country: UA, service: o365, user: "user{i}", repeat: 11, every: 1s}
+      - {at: 24h, action: login, outcome: failure, src_ip: 203.0.113.202, country: UA, service: o365, user: last.user}
+  - name: the same 12 accounts with the last one a second later are outside the window
+    expect: no_fire
+    events:
+      - {action: login, outcome: failure, src_ip: 203.0.113.202, country: UA, service: o365, user: "user{i}", repeat: 11, every: 1s}
+      - {at: 86401s, action: login, outcome: failure, src_ip: 203.0.113.202, country: UA, service: o365, user: last.user}
+  - name: accounts tried from two addresses are counted per address (7 each stays quiet)
+    expect: no_fire
+    events:
+      - {action: login, outcome: failure, src_ip: 203.0.113.202, country: UA, service: o365, user: "user{i}", repeat: 7, every: 30m}
+      - {action: login, outcome: failure, src_ip: 203.0.113.203, country: UA, service: o365, user: "other{i}", repeat: 7, every: 30m}

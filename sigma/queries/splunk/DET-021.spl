@@ -1,0 +1,17 @@
+# DET-021 query 1
+
+| rex field=ScriptBlockText "(?<ScriptBlockTextMatch>(?is)frombase64string)"
+| eval ScriptBlockTextCondition=if(isnotnull(ScriptBlockTextMatch), "true", "false")
+| rex field=ScriptBlockText "(?<ScriptBlockTextMatch2>(?is)(\\biex\\b|invoke-expression))"
+| eval ScriptBlockTextCondition2=if(isnotnull(ScriptBlockTextMatch2), "true", "false")
+| rex field=ScriptBlockText "(?<ScriptBlockTextMatch3>(?is)(downloadstring|downloadfile|invoke-webrequest|\\biwr\\b|net\\.webclient|start-bitstransfer))"
+| eval ScriptBlockTextCondition3=if(isnotnull(ScriptBlockTextMatch3), "true", "false")
+| rex field=ScriptBlockText "(?<ScriptBlockTextMatch4>(?is)(\\biex\\b|invoke-expression))"
+| eval ScriptBlockTextCondition4=if(isnotnull(ScriptBlockTextMatch4), "true", "false")
+| rex field=ScriptBlockText "(?<ScriptBlockTextMatch5>(?i)(invoke-mimikatz|mimikatz|sekurlsa::|invoke-kerberoast|invoke-dcsync))"
+| eval ScriptBlockTextCondition5=if(isnotnull(ScriptBlockTextMatch5), "true", "false")
+| rex field=ScriptBlockText "(?<ScriptBlockTextMatch6>(?i)(amsiutils|amsiinitfailed|amsicontext))"
+| eval ScriptBlockTextCondition6=if(isnotnull(ScriptBlockTextMatch6), "true", "false")
+| rex field=ScriptBlockText "(?<ScriptBlockTextMatch7>(?i)system\\.management\\.automation\\.utils.*cachedgrouppolicysettings)"
+| eval ScriptBlockTextCondition7=if(isnotnull(ScriptBlockTextMatch7), "true", "false")
+| search (ScriptBlockTextCondition="true" ScriptBlockTextCondition2="true") OR (ScriptBlockTextCondition3="true" ScriptBlockTextCondition4="true") OR ScriptBlockTextCondition5="true" OR ScriptBlockTextCondition6="true" OR ScriptBlockTextCondition7="true"

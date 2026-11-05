@@ -1,0 +1,3 @@
+-- DET-026 query 1
+SecurityEvent
+| where EventID == 4624 and LogonType == 3

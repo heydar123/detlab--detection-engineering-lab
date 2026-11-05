@@ -1,0 +1,3 @@
+# Only needed to run the tests. Running the project itself needs nothing to install:
+# PyYAML's pure-Python code is bundled in detlab/_vendor (MIT license included).
+pytest>=8.0

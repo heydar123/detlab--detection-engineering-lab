@@ -1,0 +1,61 @@
+title: 'New account created (audit event or net user /add) [user_create]'
+id: '616328c5-bc07-5b0f-b32b-8be46ea99a18'
+name: detlab_det_019_user_create
+status: experimental
+description: 'A new local or domain account was created, either as a Windows audit event or by running "net user ... /add". Attackers create their own account so they can come back even if the account they stole is reset. Creating accounts is normal work for the help desk, so the only exclusion is the help desk''s own onboarding pattern, and it is deliberately narrow.'
+author: 'Detection Lab'
+date: '2026-11-04'
+tags:
+  - attack.persistence
+  - attack.t1136.001
+  - attack.t1136.002
+logsource:
+  product: windows
+  service: security
+detection:
+  selection_1:
+    EventID: 4720
+  condition: selection_1
+falsepositives:
+  - 'Help desk onboarding, lab machines that create test users.'
+  - 'Known benign source at the lab site, not part of this export: Help desk onboarding creates domain accounts named first-initial.surname on the domain controller (process HR-114). Pinned to this admin, this host AND the naming pattern, so an account with an odd name still alerts. An attacker who copies the pattern while using this admin''s login would be missed; see EV-12.'
+level: medium
+---
+title: 'New account created (audit event or net user /add) [process_create]'
+id: '3592819d-04c2-5d59-9fd7-c663d9aaabe5'
+name: detlab_det_019_process_create
+status: experimental
+description: 'A new local or domain account was created, either as a Windows audit event or by running "net user ... /add". Attackers create their own account so they can come back even if the account they stole is reset. Creating accounts is normal work for the help desk, so the only exclusion is the help desk''s own onboarding pattern, and it is deliberately narrow.'
+author: 'Detection Lab'
+date: '2026-11-04'
+tags:
+  - attack.persistence
+  - attack.t1136.001
+  - attack.t1136.002
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_1:
+    Image|endswith:
+      - '\net.exe'
+      - '\net1.exe'
+    CommandLine|re|i|all:
+      - '\buser\b'
+      - '\s/add\b'
+  filter_1_1:
+    CommandLine|re|i: '\b(localgroup|group)\b'
+  selection_2:
+    OriginalFileName:
+      - net.exe
+      - net1.exe
+    CommandLine|re|i|all:
+      - '\buser\b'
+      - '\s/add\b'
+  filter_2_1:
+    CommandLine|re|i: '\b(localgroup|group)\b'
+  condition: '(selection_1 and not filter_1_1) or (selection_2 and not filter_2_1)'
+falsepositives:
+  - 'Help desk onboarding, lab machines that create test users.'
+  - 'Known benign source at the lab site, not part of this export: Help desk onboarding creates domain accounts named first-initial.surname on the domain controller (process HR-114). Pinned to this admin, this host AND the naming pattern, so an account with an odd name still alerts. An attacker who copies the pattern while using this admin''s login would be missed; see EV-12.'
+level: medium

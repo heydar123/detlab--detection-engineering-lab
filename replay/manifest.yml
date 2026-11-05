@@ -1,0 +1,250 @@
+# Real attack recordings used by `python -m detlab replay`.
+# Written BEFORE any rule was run on the holdout datasets. `expect` is what the rules should catch,
+# decided from the attack technique alone. See docs/replay-results.md for the protocol and the results.
+source:
+  name: OTRF Security-Datasets (Mordor)
+  url: https://github.com/OTRF/Security-Datasets
+  commit: d9d40ef123d2c87d5d3df28c96bcab4f0faccc87
+  license: MIT (Copyright (c) 2021 Open Threat Research Forge)
+  note: The repository README text still says GPL; the LICENSE file in the repository is MIT, and the LICENSE file is what applies.
+  container: otrf-datasets.zip
+  files_are_unmodified: true
+split:
+  rule: sha256 of the zip file name (with .zip); an odd first byte means holdout, an even one means dev
+  dev: Rules and exclusions may be tuned while looking at these.
+  holdout: Run once after the rules are frozen. Never looked at while writing rules. First-run result is stored in replay/holdout-first-run.json.
+datasets:
+  - id: auditpol_system_user_auditpolicy_modification
+    file: auditpol_system_user_auditpolicy_modification.zip
+    sha256: 5eb1776e7e9f79060a87ed9efcce0eebbab7940f8f51db8b2d67368c64e2187d
+    repo_path: datasets/atomic/windows/defense_evasion/host/auditpol_system_user_auditpolicy_modification.zip
+    metadata_id: SDWIN-220630130349
+    title: 'Disabling Windows Event Logging via Audit Policy Modification'
+    attack: [T1562.002]
+    split: holdout
+    expect: [DET-017]
+  - id: cmd_bitsadmin_download_psh_script
+    file: cmd_bitsadmin_download_psh_script.zip
+    sha256: 8fb7bc9f3d82f672dc39a55e50006137aa540c4a9860acdcc5d08a4fd609b594
+    repo_path: datasets/atomic/windows/defense_evasion/host/cmd_bitsadmin_download_psh_script.zip
+    metadata_id: SDWIN-201023023651
+    title: 'Bitsadmin Download Malicious File'
+    attack: [T1197]
+    split: holdout
+    expect: [DET-016]
+  - id: cmd_dumping_ntds_dit_file_ntdsutil
+    file: cmd_dumping_ntds_dit_file_ntdsutil.zip
+    sha256: 4633882ab1e9eadd156b29a89a5a6e24b680ead1b11ee259fdbe0d19ddbf77cf
+    repo_path: datasets/atomic/windows/credential_access/host/cmd_dumping_ntds_dit_file_ntdsutil.zip
+    metadata_id: SDWIN-230718151900
+    title: 'Dumping NTDS.dit using NTDSutil'
+    attack: [T1003.003]
+    split: dev
+    expect: [DET-010]
+  - id: cmd_lsass_memory_dumpert_syscalls
+    file: cmd_lsass_memory_dumpert_syscalls.zip
+    sha256: a28dbf708685a80edfb0b3d2a00c9bf196dd394fc1d61a933878841f4872a7ed
+    repo_path: datasets/atomic/windows/credential_access/host/cmd_lsass_memory_dumpert_syscalls.zip
+    metadata_id: SDWIN-201018225619
+    title: 'Lsass Memory Dump via Syscalls'
+    attack: [T1003.001]
+    split: holdout
+    expect: [DET-009]
+  - id: cmd_netsh_fw_mod_open_ports
+    file: cmd_netsh_fw_mod_open_ports.zip
+    sha256: 3d887b38c6a92892f950029f40114fe4598a798ad20453671dbe3d111b9ce4a2
+    repo_path: datasets/atomic/windows/defense_evasion/host/cmd_netsh_fw_mod_open_ports.zip
+    metadata_id: SDWIN-201021001911
+    title: 'Netsh Open FW Proxy Ports'
+    attack: [T1562.004]
+    split: dev
+    expect: [DET-018]
+  - id: cmd_wevtutil_modify_security_eventlog_path
+    file: cmd_wevtutil_modify_security_eventlog_path.zip
+    sha256: 2ea34cf2d3526e30f9fe004fc4f53f8a04d8e6885e697d77c44102567279ac67
+    repo_path: datasets/atomic/windows/defense_evasion/host/cmd_wevtutil_modify_security_eventlog_path.zip
+    metadata_id: SDWIN-220705170038
+    title: 'Modifying Security Event Log File Path via Modification of Log Configuration'
+    attack: [T1562.002]
+    split: dev
+    expect: [DET-017]
+  - id: covenant_dcsync_dcerpc_drsuapi_DsGetNCChanges
+    file: covenant_dcsync_dcerpc_drsuapi_DsGetNCChanges.zip
+    sha256: ccbb0e91c03fa1d575b3bfccba59f3bba62479860bd9ee8b571a907333eb9082
+    repo_path: datasets/atomic/windows/credential_access/host/covenant_dcsync_dcerpc_drsuapi_DsGetNCChanges.zip
+    metadata_id: SDWIN-200805020926
+    title: 'Covenant DCSync'
+    attack: [T1003.006]
+    split: dev
+    expect: [DET-011]
+  - id: covenant_installutil
+    file: covenant_installutil.zip
+    sha256: 9be5698bd46e2869b34d0a6ef712725d1e611eb32d87d2d29f37c9e34872fabe
+    repo_path: datasets/atomic/windows/defense_evasion/host/covenant_installutil.zip
+    metadata_id: SDWIN-191027223020
+    title: 'Covenant ShellCmd InstallUtil'
+    attack: [T1218.004]
+    split: holdout
+    expect: [DET-016]
+  - id: covenant_psremoting_command
+    file: covenant_psremoting_command.zip
+    sha256: 4a2e0f9688c87a90b17b608ff38fb2230ceb7305ea0368703dcfe53269e3f096
+    repo_path: datasets/atomic/windows/lateral_movement/host/covenant_psremoting_command.zip
+    metadata_id: SDWIN-200806115603
+    title: 'Covenant PowerShell Remoting Command'
+    attack: [T1021.006]
+    split: dev
+    expect: [DET-020]
+  - id: covenant_sharpsc_create_dcerpc_smb_svcctl
+    file: covenant_sharpsc_create_dcerpc_smb_svcctl.zip
+    sha256: 77487bbd1fc7954adbc9ba07bfeeeb9d57192b0f0e0f54e1ee5a05c71a5be84a
+    repo_path: datasets/atomic/windows/lateral_movement/host/covenant_sharpsc_create_dcerpc_smb_svcctl.zip
+    metadata_id: SDWIN-200806022635
+    title: 'Covenant SharpSC Create'
+    attack: [T1021.002]
+    split: holdout
+    expect: [DET-012]
+  - id: empire_launcher_sct_regsvr32
+    file: empire_launcher_sct_regsvr32.zip
+    sha256: abeb5c52c75286386e5eb999d7423d738a624191f4a95fb62694b471a10b2dab
+    repo_path: datasets/atomic/windows/defense_evasion/host/empire_launcher_sct_regsvr32.zip
+    metadata_id: SDWIN-200721232741
+    title: 'Empire Regsvr32 Execution'
+    attack: [T1218.010]
+    split: dev
+    expect: [DET-016]
+  - id: empire_launcher_vbs
+    file: empire_launcher_vbs.zip
+    sha256: 812da270cf8cda6f1948fb6275410f15dc1794d0bd6b623c9c25b2518285019c
+    repo_path: datasets/atomic/windows/execution/host/empire_launcher_vbs.zip
+    metadata_id: SDWIN-190518182022
+    title: 'Empire VBS Execution'
+    attack: [T1059.005]
+    split: dev
+    expect: [DET-004, DET-021]
+  - id: empire_mimikatz_logonpasswords
+    file: empire_mimikatz_logonpasswords.zip
+    sha256: bb4c057b62d781be5426e011872ba1a15070c07afbb24848a14458f4b22b06fb
+    repo_path: datasets/atomic/windows/credential_access/host/empire_mimikatz_logonpasswords.zip
+    metadata_id: SDWIN-190518202151
+    title: 'Empire Mimikatz LogonPasswords'
+    attack: [T1003.001]
+    split: dev
+    expect: [DET-009, DET-021]
+  - id: empire_persistence_registry_modification_run_keys_elevated_user
+    file: empire_persistence_registry_modification_run_keys_elevated_user.zip
+    sha256: 2809354d679025859d723be3ceb1e2c9f9e5dde2ebec5bbea7c398e165a9b67d
+    repo_path: datasets/atomic/windows/persistence/host/empire_persistence_registry_modification_run_keys_elevated_user.zip
+    metadata_id: SDWIN-200722001847
+    title: 'Empire Elevated Registry Run Keys'
+    attack: [T1547.001]
+    split: dev
+    expect: [DET-014]
+  - id: empire_psexec_dcerpc_tcp_svcctl
+    file: empire_psexec_dcerpc_tcp_svcctl.zip
+    sha256: 8f40e7fc86bbbf31ebd50b3ba537cf0f4378392ae3e74de84bee00aeb0de1fa5
+    repo_path: datasets/atomic/windows/lateral_movement/host/empire_psexec_dcerpc_tcp_svcctl.zip
+    metadata_id: SDWIN-190518210652
+    title: 'Empire Invoke PsExec'
+    attack: [T1021]
+    split: holdout
+    expect: [DET-012]
+  - id: empire_schtasks_creation_standard_user
+    file: empire_schtasks_creation_standard_user.zip
+    sha256: b073a18420c90394cd2b6ad7589c78d90eba32dc155ed04b12ac824a8fc591b4
+    repo_path: datasets/atomic/windows/persistence/host/empire_schtasks_creation_standard_user.zip
+    metadata_id: SDWIN-190319024742
+    title: 'Empire Userland Scheduled Tasks'
+    attack: [T1053.005]
+    split: holdout
+    expect: [DET-013]
+  - id: empire_shell_net_local_users
+    file: empire_shell_net_local_users.zip
+    sha256: a2cf8016ad2a134f61aec5133bd0aa54f662aa4165f60b30f4204fd31787576c
+    repo_path: datasets/atomic/windows/discovery/host/empire_shell_net_local_users.zip
+    metadata_id: SDWIN-190319020729
+    title: 'Empire Net Local Users'
+    attack: [T1087.001]
+    split: holdout
+    expect: [DET-007]
+  - id: empire_shell_net_localgroup_administrators
+    file: empire_shell_net_localgroup_administrators.zip
+    sha256: 7331af9e09f7cb457e7b5a44494e4b2612a810ae50254c6a2d996914d66fe663
+    repo_path: datasets/atomic/windows/discovery/host/empire_shell_net_localgroup_administrators.zip
+    metadata_id: SDWIN-190319020147
+    title: 'Empire Net Local Administrators Group'
+    attack: [T1069.001]
+    split: dev
+    expect: [DET-007]
+  - id: empire_shell_reg_dump_sam
+    file: empire_shell_reg_dump_sam.zip
+    sha256: 5a8ee19860f35da6d4bcadf15178a085b469086c461d3d873d0f4adedba41f0a
+    repo_path: datasets/atomic/windows/credential_access/host/empire_shell_reg_dump_sam.zip
+    metadata_id: SDWIN-190625133822
+    title: 'Empire Reg Dump SAM Hive'
+    attack: [T1003.002]
+    split: holdout
+    expect: [DET-010]
+  - id: empire_smbexec_dcerpc_smb_svcctl
+    file: empire_smbexec_dcerpc_smb_svcctl.zip
+    sha256: c0fc435c9ce0ecdc7cd57b4055977b949ac6b1cae9d7f4ce7aa0f0e5eae7d7f1
+    repo_path: datasets/atomic/windows/lateral_movement/host/empire_smbexec_dcerpc_smb_svcctl.zip
+    metadata_id: SDWIN-190518210125
+    title: 'Empire Invoke SMBExec'
+    attack: [T1021.002]
+    split: holdout
+    expect: [DET-012]
+  - id: empire_uac_shellapi_fodhelper
+    file: empire_uac_shellapi_fodhelper.zip
+    sha256: b8cc7aae826f5e4aea3ea47b2b6db69b062c39201de8de9621d5081622d3c504
+    repo_path: datasets/atomic/windows/privilege_escalation/host/empire_uac_shellapi_fodhelper.zip
+    metadata_id: SDWIN-200904032946
+    title: 'Invoke BypassUAC FodHelper'
+    attack: [T1548.002]
+    split: holdout
+    expect: [DET-015]
+  - id: empire_wmi_dcerpc_wmi_IWbemServices_ExecMethod
+    file: empire_wmi_dcerpc_wmi_IWbemServices_ExecMethod.zip
+    sha256: 96f1dbd9c5b077c8951b6e1f43b7fe01a2620c649889262481f15139a1746d88
+    repo_path: datasets/atomic/windows/lateral_movement/host/empire_wmi_dcerpc_wmi_IWbemServices_ExecMethod.zip
+    metadata_id: SDWIN-200921001437
+    title: 'Empire Invoke WMI'
+    attack: [T1047]
+    split: dev
+    expect: [DET-020]
+  - id: empire_wmic_add_user_backdoor
+    file: empire_wmic_add_user_backdoor.zip
+    sha256: 88502d9a8d90f17aa638d7331120d52e7295480ea5fc4a156463399181d1c6e1
+    repo_path: datasets/atomic/windows/defense_evasion/host/empire_wmic_add_user_backdoor.zip
+    metadata_id: SDWIN-200914080546
+    title: 'Empire Remote WMIC Add User'
+    attack: [T1047]
+    split: dev
+    expect: [DET-019]
+  - id: psh_cmstp_execution_bypassuac
+    file: psh_cmstp_execution_bypassuac.zip
+    sha256: a653c698e8f779261ba0b3ac92bd604d4abe3a510cda8ab1f5ccdd421d013d4c
+    repo_path: datasets/atomic/windows/defense_evasion/host/psh_cmstp_execution_bypassuac.zip
+    metadata_id: SDWIN-201022015432
+    title: 'CMSTP Proxy Execution'
+    attack: [T1218.003]
+    split: dev
+    expect: [DET-016]
+  - id: psh_lsass_memory_dump_comsvcs
+    file: psh_lsass_memory_dump_comsvcs.zip
+    sha256: 0af9e920220d746432f0972be83ad057629695540aecd68c15869d190786e1ae
+    repo_path: datasets/atomic/windows/credential_access/host/psh_lsass_memory_dump_comsvcs.zip
+    metadata_id: SDWIN-201018195009
+    title: 'Lsass Memory Dump via Comsvcs.dll'
+    attack: [T1003.001]
+    split: dev
+    expect: [DET-009, DET-010]
+  - id: psh_mshta_html_application_execution
+    file: psh_mshta_html_application_execution.zip
+    sha256: f734cd8d2043da8f9f49d86bea7b5bf35a8c87445aa44975a107936a543ae840
+    repo_path: datasets/atomic/windows/defense_evasion/host/psh_mshta_html_application_execution.zip
+    metadata_id: SDWIN-201022035214
+    title: 'Mshta HTML Application (HTA) Execution'
+    attack: [T1218.005]
+    split: holdout
+    expect: [DET-016]

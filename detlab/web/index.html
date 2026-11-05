@@ -1,0 +1,1745 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="lab-token" content="__LAB_TOKEN__">
+<title>Detection Lab</title>
+<style>
+/* ---------- tokens ---------- */
+:root {
+  color-scheme: light;
+  --page: #f3f5f8;
+  --surface: #fcfdfe;
+  --sunken: #eceff4;
+  --ink: #1b2330;
+  --ink2: #4b5565;
+  --muted: #5f6a7b;
+  --line: #dfe4ec;
+  --axis: #c4ccd8;
+  --wash: rgba(27, 35, 48, 0.05);
+  --accent: #2a78d6;        /* series 1: real attack alerts */
+  --accent-ink: #1c5cab;    /* accent used as text or a small line */
+  --accent-wash: rgba(42, 120, 214, 0.10);
+  --orange: #eb6834;        /* series 2: false alarms */
+  --attack: #6b7585;        /* the planted attacks (reference marks, not a series) */
+  --btn: #256abf;
+  --good: #0ca30c;
+  --good-ink: #006300;
+  --serious: #ec835a;
+  --crit: #d03b3b;
+  --crit-ink: #b02a2a;
+  --focus: #2a78d6;
+  --shadow: 0 10px 32px rgba(27, 35, 48, 0.16);
+  /* coverage levels: one blue ramp, validated as an ordinal scale (steps 250, 500, 650 of the blue ramp) */
+  --lv1: #86b6ef; --lv1-ink: #1b2330;
+  --lv2: #256abf; --lv2-ink: #ffffff;
+  --lv3: #104281; --lv3-ink: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0f141b; --surface: #151b24; --sunken: #1b2330; --ink: #e8edf4; --ink2: #b4bfce; --muted: #8793a4;
+    --line: #243040; --axis: #364253; --wash: rgba(232, 237, 244, 0.06);
+    --accent: #3987e5; --accent-ink: #86b6ef; --accent-wash: rgba(57, 135, 229, 0.16); --orange: #d95926;
+    --attack: #8f9bad; --btn: #256abf; --good-ink: #0ca30c; --crit: #d03b3b; --crit-ink: #ff8a8a;
+    --focus: #86b6ef; --shadow: 0 10px 32px rgba(0, 0, 0, 0.5);
+    --lv1: #184f95; --lv1-ink: #e8edf4; --lv2: #3987e5; --lv2-ink: #0f141b; --lv3: #b7d3f6; --lv3-ink: #0f141b;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0f141b; --surface: #151b24; --sunken: #1b2330; --ink: #e8edf4; --ink2: #b4bfce; --muted: #8793a4;
+  --line: #243040; --axis: #364253; --wash: rgba(232, 237, 244, 0.06);
+  --accent: #3987e5; --accent-ink: #86b6ef; --accent-wash: rgba(57, 135, 229, 0.16); --orange: #d95926;
+  --attack: #8f9bad; --btn: #256abf; --good-ink: #0ca30c; --crit: #d03b3b; --crit-ink: #ff8a8a;
+  --focus: #86b6ef; --shadow: 0 10px 32px rgba(0, 0, 0, 0.5);
+  --lv1: #184f95; --lv1-ink: #e8edf4; --lv2: #3987e5; --lv2-ink: #0f141b; --lv3: #b7d3f6; --lv3-ink: #0f141b;
+}
+
+/* ---------- base ---------- */
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--page); color: var(--ink);
+  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+h1, h2, h3, h4, p, ul, ol, dl, dd, figure { margin: 0; }
+ul, ol { padding: 0; list-style: none; }
+a { color: var(--accent-ink); text-underline-offset: 2px; }
+button, input, select, textarea { font: inherit; color: inherit; }
+code, pre, textarea.code { font-family: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", monospace; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+main:focus { outline: none; }
+.skip { position: absolute; left: 8px; top: -48px; background: var(--surface); padding: 8px 12px; border-radius: 6px; z-index: 50; }
+.skip:focus { top: 8px; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.muted { color: var(--muted); }
+[hidden] { display: none !important; }
+
+/* ---------- header and run bar ---------- */
+.top { background: var(--surface); border-bottom: 1px solid var(--line); }
+.top-in { max-width: 1180px; margin: 0 auto; padding: 0 16px; display: flex; align-items: center; gap: 24px; min-height: 56px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 650; font-size: 16px; letter-spacing: -0.01em; color: var(--ink); text-decoration: none; white-space: nowrap; }
+.brand svg { display: block; }
+#nav { display: flex; gap: 2px; flex: 1; overflow-x: auto; scrollbar-width: none; align-self: stretch; }
+#nav::-webkit-scrollbar { display: none; }
+#nav a { display: flex; align-items: center; padding: 0 12px; color: var(--ink2); text-decoration: none; font-weight: 500; white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+#nav a:hover { color: var(--ink); background: var(--wash); }
+#nav a[aria-current="page"] { color: var(--ink); font-weight: 650; border-bottom-color: var(--accent); }
+.runbar { background: var(--surface); border-bottom: 1px solid var(--line); }
+.runbar-in { max-width: 1180px; margin: 0 auto; padding: 10px 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.field { display: flex; align-items: center; gap: 8px; }
+.field label { color: var(--ink2); font-size: 13.5px; }
+.field input { width: 92px; height: 36px; padding: 0 10px; border: 1px solid var(--axis); border-radius: 6px; background: var(--surface); }
+.field input.days { width: 68px; }
+.runstatus { color: var(--muted); font-size: 13.5px; flex: 1; min-width: 200px; }
+.runstatus.err { color: var(--crit-ink); }
+
+/* ---------- buttons and controls ---------- */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 0 14px; border: 1px solid var(--axis); border-radius: 6px; background: var(--surface); color: var(--ink); text-decoration: none; cursor: pointer; font-weight: 550; }
+.btn:hover { background: var(--wash); }
+.btn.primary { background: var(--btn); border-color: var(--btn); color: #fff; }
+.btn.primary:hover { filter: brightness(1.1); background: var(--btn); }
+.btn.quiet { border-color: transparent; background: transparent; color: var(--ink2); }
+.btn.quiet:hover { background: var(--wash); color: var(--ink); }
+.btn[disabled] { opacity: 0.55; cursor: default; filter: none; }
+.btn svg { flex: none; }
+.seg { display: inline-flex; border: 1px solid var(--axis); border-radius: 6px; overflow: hidden; background: var(--surface); }
+.seg button { min-height: 34px; padding: 0 14px; border: 0; background: transparent; cursor: pointer; color: var(--ink2); font-weight: 500; }
+.seg button + button { border-left: 1px solid var(--axis); }
+.seg button:hover { background: var(--wash); }
+.seg button[aria-pressed="true"] { background: var(--accent-wash); color: var(--ink); font-weight: 650; }
+select, input[type="search"], input[type="text"] { height: 36px; padding: 0 10px; border: 1px solid var(--axis); border-radius: 6px; background: var(--surface); }
+
+/* ---------- layout ---------- */
+main { max-width: 1180px; margin: 0 auto; padding: 28px 16px 72px; transition: opacity 0.15s; }
+main.stale { opacity: 0.5; pointer-events: none; }
+.stack > * + * { margin-top: 28px; }
+.lead h1 { font-size: clamp(26px, 3.4vw, 38px); line-height: 1.12; letter-spacing: -0.025em; font-weight: 700; max-width: 22em; }
+.lead .sub { margin-top: 14px; color: var(--ink2); max-width: 46em; font-size: 16px; }
+.lead .note { margin-top: 10px; color: var(--muted); max-width: 46em; font-size: 14px; }
+h2 { font-size: 17px; font-weight: 650; letter-spacing: -0.01em; }
+h3 { font-size: 15px; font-weight: 650; }
+.cap { color: var(--muted); font-size: 13.5px; margin-top: 2px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.panel-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 16px 18px 0; }
+.panel-body { padding: 14px 18px 18px; }
+.two { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+.sec > h2 { margin-bottom: 4px; }
+
+/* ---------- overview tiles ---------- */
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.tiles > li { display: flex; flex-direction: column; padding: 16px 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.tiles .fl { color: var(--ink2); font-size: 13.5px; }
+.tiles .big { display: block; margin: 2px 0 6px; font-size: 30px; line-height: 1.15; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.tiles p { color: var(--muted); font-size: 13.5px; }
+.tiles a { margin-top: auto; padding-top: 10px; font-size: 13.5px; }
+.tiles.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+/* ---------- coverage levels (one blue ramp: mapped, exercised in the lab, seen in a real recording) ---------- */
+.swatch, .tile { display: inline-flex; align-items: center; justify-content: center; flex: none; border: 1px solid var(--axis); background: var(--sunken); color: var(--muted); border-radius: 5px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.swatch { font-size: 11px; }
+.swatch.lv1, .tile.lv1 { background: var(--lv1); border-color: var(--lv1); color: var(--lv1-ink); }
+.swatch.lv2, .tile.lv2 { background: var(--lv2); border-color: var(--lv2); color: var(--lv2-ink); }
+.swatch.lv3, .tile.lv3 { background: var(--lv3); border-color: var(--lv3); color: var(--lv3-ink); }
+.cov-key { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: center; color: var(--ink2); font-size: 13.5px; }
+.cov-key > span { display: inline-flex; align-items: center; gap: 8px; }
+.cov-map { display: grid; grid-template-columns: repeat(auto-fill, minmax(262px, 1fr)); gap: 26px 28px; }
+.tactic h3 { font-size: 14.5px; }
+.tactic .cap { margin: 0 0 8px; }
+.tile-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.tile { width: 26px; height: 26px; padding: 0; cursor: pointer; font-size: 12px; transition: transform 0.1s; }
+.tile:hover, .tile:focus-visible { transform: scale(1.14); }
+.tile.used { outline: 2px solid var(--ink); outline-offset: 1px; }
+.tile:focus-visible, .tile.used:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.cov-tools { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
+.cov-tools label { color: var(--ink2); font-size: 13.5px; }
+.cov-tools select { max-width: 100%; }
+
+/* ---------- rule list, search, tests ---------- */
+.side { position: sticky; top: 12px; min-width: 0; }
+.side-tools { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.side-tools input { width: 100%; }
+.list.scroll { max-height: calc(100vh - 150px); overflow-y: auto; }
+.tests td:first-child { max-width: 46em; }
+.glance { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px 22px; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.glance dt { color: var(--muted); font-size: 13px; }
+.glance dd { font-weight: 600; }
+.glance dd .muted { font-weight: 400; }
+pre.code-view { margin: 0; padding: 12px 14px; background: var(--sunken); border-radius: 8px; overflow: auto; font-size: 12.5px; line-height: 1.5; max-height: 420px; white-space: pre; }
+
+/* ---------- risk score ---------- */
+.fac > li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 7px 0; border-top: 1px solid var(--line); max-width: 46em; }
+.fac > li:first-child { border-top: 0; }
+.fac-p { font-weight: 650; font-variant-numeric: tabular-nums; }
+.fac-bar { grid-column: 1 / -1; height: 6px; background: var(--sunken); border-radius: 3px; overflow: hidden; }
+.fac-bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+.fac-total { margin-top: 8px; font-weight: 650; }
+
+/* ---------- real recordings ---------- */
+.pill.holdout { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-wash); }
+.t td ul.mini > li + li { margin-top: 2px; }
+.stack-cell { display: flex; flex-direction: column; gap: 2px; }
+.prose { max-width: 46em; }
+.prose > * + * { margin-top: 12px; }
+.prose h2 { margin-top: 30px; font-size: 19px; }
+.prose ul.steps li, .prose ol.steps li { max-width: none; }
+.prose .tw { margin-top: 14px; }
+pre.cmd { margin: 0; padding: 12px 14px; background: var(--sunken); border-radius: 8px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+.fine { color: var(--muted); font-size: 13px; max-width: 60em; }
+
+/* ---------- legend, severity, verdicts ---------- */
+.legend { display: flex; flex-wrap: wrap; gap: 6px 20px; padding: 10px 18px 0; color: var(--ink2); font-size: 13.5px; }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
+.sev { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.sev-bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 14px; }
+.sev-bars i { width: 4px; background: var(--axis); border-radius: 1px; }
+.sev-bars i:nth-child(1) { height: 5px; } .sev-bars i:nth-child(2) { height: 8px; } .sev-bars i:nth-child(3) { height: 11px; } .sev-bars i:nth-child(4) { height: 14px; }
+.sev-bars i.on { background: var(--ink2); }
+.sev-high .sev-bars i.on { background: var(--serious); }
+.sev-critical .sev-bars i.on { background: var(--crit); }
+.sev-t { font-size: 13.5px; }
+.verdict { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.verdict svg, .legend svg { flex: none; }
+.state { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-weight: 550; }
+.state.ok { color: var(--good-ink); }
+.state.bad { color: var(--crit-ink); }
+.state.same { color: var(--ink2); }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--axis); font-size: 12.5px; color: var(--ink2); }
+
+/* ---------- tables ---------- */
+.tw { overflow-x: auto; }
+table.t { width: 100%; border-collapse: collapse; font-size: 14px; }
+.t th { text-align: left; font-weight: 600; color: var(--ink2); font-size: 13px; padding: 9px 12px; border-bottom: 1px solid var(--axis); white-space: nowrap; background: var(--surface); }
+.t td { padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.t tbody th { text-align: left; font-size: 14px; font-weight: 600; color: var(--ink); background: none; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.t tr:last-child td, .t tr:last-child th { border-bottom: 0; }
+.t td.num, .t th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.t tbody tr.click { cursor: pointer; }
+.t tbody tr.click:hover td { background: var(--wash); }
+.t .idbtn { white-space: nowrap; border: 0; background: none; padding: 0; color: var(--accent-ink); font-weight: 600; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.t code { font-size: 12.5px; word-break: break-all; }
+.t .nowrap { white-space: nowrap; }
+.scrollhint { display: none; padding: 0 12px 10px; }
+.empty { padding: 28px 18px; color: var(--muted); text-align: center; }
+.filters { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin-bottom: 14px; }
+.filters .count { color: var(--muted); font-size: 13.5px; margin-left: auto; }
+
+/* ---------- lane chart ---------- */
+#lanes { padding: 8px 12px 8px; }
+#lanes svg { display: block; width: 100%; height: auto; overflow: visible; }
+.grid { stroke: var(--line); stroke-width: 1; }
+.track { stroke: var(--line); stroke-width: 1; }
+.tick { fill: var(--muted); font-size: 12px; }
+.lane-id { fill: var(--ink); font-size: 13px; font-weight: 600; }
+.lane-name { fill: var(--muted); font-size: 12.5px; }
+a:hover .lane-id { text-decoration: underline; }
+.mark { cursor: pointer; outline: none; }
+.mark.attack { cursor: default; }
+.mark .hit { fill: transparent; stroke: none; }
+.mark:focus-visible .hit { stroke: var(--focus); stroke-width: 2; }
+.mark .glyph { transform-box: fill-box; transform-origin: center; transition: transform 0.1s; }
+.mark:hover .glyph, .mark:focus-visible .glyph { transform: scale(1.3); }
+.ring { fill: var(--surface); }
+.dot-tp { fill: var(--accent); }
+.dot-fp { fill: var(--orange); }
+.dot-rel { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+.bar-attack { fill: var(--attack); }
+.nodata { fill: var(--muted); font-size: 13px; }
+
+/* ---------- time to detect ---------- */
+.ttd > li { padding: 10px 0; border-top: 1px solid var(--line); }
+.ttd > li:first-child { border-top: 0; padding-top: 2px; }
+.ttd-top { display: flex; justify-content: space-between; gap: 12px; }
+.ttd-name { font-weight: 550; }
+.ttd-rule { color: var(--muted); font-size: 13.5px; white-space: nowrap; }
+.ttd-line { position: relative; height: 22px; margin-top: 4px; border-left: 1px solid var(--axis); }
+.ttd-bar { position: absolute; left: 0; top: 6px; height: 10px; background: var(--accent); border-radius: 0 4px 4px 0; }
+.ttd-val { position: absolute; top: 0; line-height: 22px; font-size: 13.5px; font-weight: 600; white-space: nowrap; padding-left: 8px; }
+
+/* ---------- master detail ---------- */
+.md { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 24px; align-items: start; }
+.list { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.list a.item { display: block; padding: 12px 14px; border-top: 1px solid var(--line); color: var(--ink); text-decoration: none; border-left: 3px solid transparent; }
+.list a.item:first-child { border-top: 0; }
+.list a.item:hover { background: var(--wash); }
+.list a.item[aria-current="true"] { background: var(--accent-wash); border-left-color: var(--accent); }
+.item-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.item-id { font-weight: 650; }
+.item-title { color: var(--ink2); font-size: 13.5px; margin-top: 2px; }
+.item-meta { color: var(--muted); font-size: 13px; margin-top: 2px; }
+.detail { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 22px 24px 26px; min-width: 0; }
+.detail > * + * { margin-top: 22px; }
+.detail h2 { font-size: 21px; letter-spacing: -0.015em; line-height: 1.25; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; margin-top: 8px; color: var(--ink2); font-size: 14px; }
+.detail h3 { margin-bottom: 8px; }
+.steps { list-style: none; }
+.steps li { padding: 5px 0 5px 20px; position: relative; max-width: 62em; }
+.steps li::before { content: ""; position: absolute; left: 4px; top: 14px; width: 6px; height: 6px; border-radius: 50%; background: var(--axis); }
+ol.steps { counter-reset: s; }
+ol.steps li { padding-left: 30px; }
+ol.steps li::before { counter-increment: s; content: counter(s); width: auto; height: auto; background: none; border-radius: 0; left: 0; top: 5px; color: var(--muted); font-variant-numeric: tabular-nums; font-weight: 600; }
+.excl { border-left: 3px solid var(--axis); padding: 4px 0 4px 12px; max-width: 62em; }
+.excl + .excl { margin-top: 10px; }
+.excl code { font-size: 13px; background: var(--sunken); padding: 1px 6px; border-radius: 4px; }
+.tabs { display: flex; gap: 6px; margin-bottom: 8px; align-items: center; flex-wrap: wrap; }
+pre.sql { margin: 0; padding: 12px 14px; background: var(--sunken); border-radius: 8px; overflow-x: auto; font-size: 12.5px; line-height: 1.5; max-height: 360px; }
+
+/* ---------- cases ---------- */
+.ribbon { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 4px; }
+.ribbon .step { padding: 3px 10px; border: 1px solid var(--axis); border-radius: 6px; font-size: 13.5px; font-weight: 550; background: var(--surface); }
+.ribbon svg { color: var(--muted); }
+.timeline { position: relative; }
+.timeline li { display: grid; grid-template-columns: 76px 14px minmax(0, 1fr); gap: 0 10px; padding-bottom: 14px; }
+.timeline .when { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; padding-top: 2px; text-align: right; }
+.timeline .rail { position: relative; }
+.timeline .rail::before { content: ""; position: absolute; left: 6px; top: 0; bottom: -14px; width: 1px; background: var(--axis); }
+.timeline li:last-child .rail::before { bottom: 6px; }
+.timeline .rail i { position: absolute; left: 2px; top: 7px; width: 9px; height: 9px; border-radius: 50%; background: var(--surface); border: 2px solid var(--ink2); }
+.timeline li.hit .rail i { background: var(--accent); border-color: var(--accent); }
+.timeline code { display: block; margin-top: 4px; padding: 6px 10px; background: var(--sunken); border-radius: 6px; font-size: 12.5px; word-break: break-all; }
+.timeline .tl-note { display: block; margin-top: 3px; }
+.chips { display: inline-flex; gap: 6px; flex-wrap: wrap; margin-left: 6px; }
+.chip { border: 1px solid var(--accent); color: var(--accent-ink); background: var(--accent-wash); border-radius: 999px; padding: 0 8px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+details.fold { border-top: 1px solid var(--line); padding: 8px 0; }
+details.fold summary { cursor: pointer; font-weight: 600; padding: 4px 0; }
+details.fold[open] summary { margin-bottom: 6px; }
+
+/* ---------- red team ---------- */
+.rt > li { display: grid; grid-template-columns: minmax(0, 1.2fr) 190px minmax(0, 1.2fr); gap: 8px 24px; padding: 16px 0; border-top: 1px solid var(--line); }
+.rt > li:first-child { border-top: 0; }
+.rt-name { font-weight: 650; }
+.rt-desc, .rt-fix { color: var(--ink2); font-size: 14px; }
+.rt-fixlabel { font-size: 13px; font-weight: 600; color: var(--ink2); margin-bottom: 2px; }
+.rt-by { color: var(--muted); font-size: 13.5px; margin-top: 2px; }
+
+/* ---------- playground ---------- */
+.pg { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+textarea.code { width: 100%; min-height: 460px; padding: 12px 14px; border: 1px solid var(--axis); border-radius: 8px; background: var(--surface); font-size: 13px; line-height: 1.5; tab-size: 2; resize: vertical; white-space: pre; overflow: auto; }
+.pg-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 10px; }
+.callout { border-left: 3px solid var(--accent); background: var(--accent-wash); padding: 10px 14px; border-radius: 0 8px 8px 0; font-size: 14px; }
+.callout + .callout { margin-top: 10px; }
+.callout.warn { border-left-color: var(--serious); background: var(--wash); }
+.errors { border-left: 3px solid var(--crit); background: var(--wash); padding: 10px 14px; border-radius: 0 8px 8px 0; }
+.errors li + li { margin-top: 4px; }
+.res > * + * { margin-top: 20px; }
+.delta { white-space: nowrap; }
+.cmp li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); align-items: center; }
+.cmp li:first-child { border-top: 0; }
+.cmp .was { color: var(--muted); font-size: 13px; }
+.cmp li.changed { font-weight: 600; }
+
+/* ---------- tooltip and drawer ---------- */
+#tip { position: fixed; z-index: 40; max-width: 320px; pointer-events: none; background: var(--surface); border: 1px solid var(--axis); border-radius: 8px; padding: 8px 12px; box-shadow: var(--shadow); font-size: 13.5px; }
+#tip strong { display: block; font-size: 14px; }
+#tip span { display: block; color: var(--ink2); }
+#tip em { display: block; color: var(--muted); font-style: normal; margin-top: 2px; font-size: 12.5px; }
+.scrim { position: fixed; inset: 0; background: rgba(10, 15, 22, 0.45); z-index: 30; }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(760px, 100vw); background: var(--surface); z-index: 31; box-shadow: var(--shadow); display: flex; flex-direction: column; animation: slidein 0.18s ease-out; }
+@keyframes slidein { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+.drawer-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 18px 22px 12px; border-bottom: 1px solid var(--line); }
+.drawer-head h2 { font-size: 19px; line-height: 1.3; }
+.drawer-body { padding: 18px 22px 40px; overflow-y: auto; flex: 1; }
+.drawer-body > * + * { margin-top: 20px; }
+.kv { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 6px 14px; font-size: 14px; }
+.kv dt { color: var(--muted); }
+.kv dd { min-width: 0; overflow-wrap: anywhere; }
+
+/* ---------- small screens ---------- */
+@media (max-width: 900px) {
+  .top-in { gap: 12px; }
+  #nav a { padding: 0 9px; }
+  .scrollhint { display: block; }
+  .two, .md, .pg { grid-template-columns: minmax(0, 1fr); }
+  .rt > li { grid-template-columns: minmax(0, 1fr); }
+  .tiles, .tiles.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .side { position: static; }
+  .list.scroll { max-height: 340px; }
+  .detail { padding: 18px 16px 22px; }
+}
+@media (max-width: 600px) {
+  .top-in { flex-wrap: wrap; gap: 0 12px; padding-top: 6px; }
+  .brand { order: 1; min-height: 40px; }
+  #theme { order: 2; margin-left: auto; }
+  #nav { order: 3; flex-basis: 100%; min-height: 42px; }
+  #nav a { padding: 0 9px; font-size: 14px; }
+  .field input { width: 80px; }
+  .btn, .seg button, select, input[type="search"] { min-height: 40px; }
+  .kv { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .kv dd { margin-bottom: 8px; }
+  .timeline li { grid-template-columns: 60px 14px minmax(0, 1fr); }
+  .drawer-body, .drawer-head { padding-left: 16px; padding-right: 16px; }
+  .tiles, .tiles.four { grid-template-columns: minmax(0, 1fr); }
+  .panel-head, .panel-body { padding-left: 14px; padding-right: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#view">Skip to content</a>
+<header class="top">
+  <div class="top-in">
+    <a class="brand" href="#/overview" aria-label="Detection Lab, overview">
+      <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="2" y="4" width="18" height="2" rx="1" fill="currentColor" opacity=".35"/><rect x="2" y="10" width="18" height="2" rx="1" fill="currentColor" opacity=".35"/><rect x="2" y="16" width="18" height="2" rx="1" fill="currentColor" opacity=".35"/><circle cx="14" cy="5" r="3.2" fill="var(--accent)"/><circle cx="7" cy="11" r="3.2" fill="var(--accent)"/><path d="M15 14.8 18.2 18 15 21.2 11.8 18Z" fill="var(--orange)"/></svg>
+      <span>Detection Lab</span>
+    </a>
+    <nav id="nav" aria-label="Sections"></nav>
+    <button class="btn quiet" id="theme" type="button"></button>
+  </div>
+</header>
+<div class="runbar">
+  <form class="runbar-in" id="runform" aria-label="Log settings" autocomplete="off" novalidate>
+    <div class="field"><label for="seed">Seed</label><input id="seed" name="seed" type="number" inputmode="numeric" min="0" step="1" value="7"></div>
+    <div class="field"><label for="days">Days</label><input id="days" class="days" name="days" type="number" inputmode="numeric" min="14" step="1" value="14"></div>
+    <button class="btn" id="runbtn" type="submit">Generate new logs</button>
+    <p class="runstatus" id="runstatus" role="status" aria-live="polite">Loading the lab...</p>
+  </form>
+</div>
+<main id="view" tabindex="-1"><noscript>This page needs JavaScript. It runs only on your own computer.</noscript></main>
+<div id="tip" role="tooltip" hidden></div>
+<div id="layer"></div>
+
+<script>
+(() => {
+'use strict';
+
+/* =====================================================================
+   Helpers. Everything shown on the page is built with text nodes, never
+   with HTML strings, so text inside logs cannot run as code.
+   ===================================================================== */
+const TOKEN = document.querySelector('meta[name="lab-token"]').content;
+const SVGNS = 'http://www.w3.org/2000/svg';
+// In the static copy of the site, every answer the server would give is embedded in the page.
+const SNAP = (() => {
+  const el = document.getElementById('lab-snapshot');
+  if (!el) return null;
+  try { return JSON.parse(el.textContent); } catch (e) { return null; }
+})();
+const $ = (sel, root = document) => root.querySelector(sel);
+
+function addKids(node, kids) {
+  for (const k of kids.flat(Infinity)) {
+    if (k == null || k === false) continue;
+    node.append(k.nodeType ? k : document.createTextNode(String(k)));
+  }
+}
+function fill(node, ...kids) { node.replaceChildren(); addKids(node, kids); return node; }
+function h(tag, props, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (v == null || v === false) continue;
+    if (k === 'class') e.className = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v === true ? '' : v);
+  }
+  addKids(e, kids);
+  return e;
+}
+function s(tag, props, ...kids) {
+  const e = document.createElementNS(SVGNS, tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (v == null || v === false) continue;
+    if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v);
+  }
+  addKids(e, kids);
+  return e;
+}
+const ICONS = {
+  check: 'M4 12.5 9.5 18 20 6.5',
+  x: 'M6 6l12 12M18 6 6 18',
+  minus: 'M6 12h12',
+  warn: 'M12 4 21 19H3Z M12 10v4.5 M12 17v.1',
+  chevron: 'M9 6l6 6-6 6',
+  download: 'M12 4v11 M7 11l5 5 5-5 M5 20h14',
+  copy: 'M9 9h10v11H9Z M5 15V4h10',
+  close: 'M6 6l12 12M18 6 6 18',
+  play: 'M7 5l12 7-12 7Z',
+  external: 'M14 5h5v5 M19 5l-8 8 M17 14v5H5V7h5',
+};
+function icon(name, size = 16) {
+  return s('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
+    'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' },
+    s('path', { d: ICONS[name] }));
+}
+
+/* ---------- formatting ---------- */
+const fmtDay = (t) => new Date(t * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+const fmtIso = (iso) => fmtDay(Date.parse(iso) / 1000) + ', ' + iso.slice(11, 19);
+function fmtDur(sec) {
+  if (sec == null) return 'n/a';
+  if (sec < 60) return sec + ' s';
+  const m = Math.floor(sec / 60), r = Math.round(sec % 60);
+  return r ? `${m} min ${r} s` : `${m} min`;
+}
+const pct = (p) => (p == null ? 'n/a' : Math.round(p * 100) + '%');
+const plural = (n, one, many) => `${n} ${n === 1 ? one : (many || one + 's')}`;
+const cap1 = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+const shortTitle = (t) => { const p = t.split(' - ')[0]; return p.length > 26 ? p.slice(0, 25) + '…' : p; };
+const SEV_RANK = { low: 1, medium: 2, high: 3, critical: 4 };
+const TYPE_TEXT = {
+  match: 'Matches a single event',
+  threshold: 'Counts events in a time window',
+  distinct_threshold: 'Counts different accounts in a time window',
+  sum_threshold: 'Adds up a number in a time window',
+  beaconing: 'Looks for connections at a steady rhythm',
+  first_seen: 'Flags something never seen before',
+  impossible_travel: 'Compares login countries over time',
+  fail_then_success: 'Looks for failures followed by a success',
+};
+function describeEntity(e) {
+  if (e.user && e.group) return `${e.user} added ${e.target_user || 'an account'} to ${e.group}`;
+  if (e.user && e.from) return `${e.user}, ${e.from} to ${e.to}`;
+  if (e.user && e.src_ip) return `${e.user} from ${e.src_ip}`;
+  if (e.user && e.host) return `${e.user} on ${e.host}`;
+  return Object.values(e).join(', ');
+}
+function showValue(v) { return typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v); }
+
+/* ---------- small components ---------- */
+function sev(level) {
+  const n = SEV_RANK[level] || 1;
+  return h('span', { class: `sev sev-${level}` },
+    h('span', { class: 'sev-bars', 'aria-hidden': 'true' }, [1, 2, 3, 4].map((i) => h('i', { class: i <= n ? 'on' : '' }))),
+    h('span', { class: 'sev-t' }, cap1(level)));
+}
+function glyph(kind, size = 12) {
+  // real attack = filled circle, false alarm = filled diamond, related = open circle
+  const c = size / 2;
+  if (kind === 'FP') return s('svg', { width: size, height: size, viewBox: `0 0 ${size} ${size}`, 'aria-hidden': 'true' },
+    s('path', { d: `M${c} 0.5 ${size - 0.5} ${c} ${c} ${size - 0.5} 0.5 ${c}Z`, fill: 'var(--orange)' }));
+  if (kind === 'related') return s('svg', { width: size, height: size, viewBox: `0 0 ${size} ${size}`, 'aria-hidden': 'true' },
+    s('circle', { cx: c, cy: c, r: c - 1.5, fill: 'var(--surface)', stroke: 'var(--accent)', 'stroke-width': 2 }));
+  return s('svg', { width: size, height: size, viewBox: `0 0 ${size} ${size}`, 'aria-hidden': 'true' },
+    s('circle', { cx: c, cy: c, r: c - 0.5, fill: 'var(--accent)' }));
+}
+const VERDICT_TEXT = { TP: 'Real attack', FP: 'False alarm', related: 'Part of another attack' };
+const verdict = (v) => h('span', { class: 'verdict' }, glyph(v), VERDICT_TEXT[v] || v);
+function status(kind, text) {
+  const ic = kind === 'ok' ? 'check' : kind === 'bad' ? 'x' : kind === 'warn' ? 'warn' : 'minus';
+  return h('span', { class: `state ${kind === 'warn' ? 'bad' : kind}` }, icon(ic, 16), text);
+}
+function seg(label, options, current, onPick) {
+  return h('div', { class: 'seg', role: 'group', 'aria-label': label },
+    options.map(([val, text]) => h('button', { type: 'button', 'aria-pressed': String(val === current), onclick: () => onPick(val) }, text)));
+}
+function table(head, rows, opts = {}) {
+  return h('div', { class: 'tw', tabindex: '0', role: 'region', 'aria-label': opts.caption || 'Table' }, h('table', { class: 't' + (opts.class ? ' ' + opts.class : '') },
+    opts.caption ? h('caption', { class: 'vh' }, opts.caption) : null,
+    h('thead', null, h('tr', null, head.map((c) => h('th', { scope: 'col', class: c.num ? 'num' : '' }, c.label || c)))),
+    h('tbody', null, rows)));
+}
+function steps(list, ordered) {
+  return h(ordered ? 'ol' : 'ul', { class: 'steps' }, list.map((t) => h('li', null, t)));
+}
+function section(title, ...kids) { return h('section', null, h('h3', null, title), ...kids); }
+
+const LEVEL_TEXT = { 0: 'No rule', 1: 'Mapped', 2: 'Exercised in the lab', 3: 'Seen in a real recording' };
+const nf = (n) => Number(n).toLocaleString('en-US');
+const ruleLink = (id, text) => h('a', { href: `#/rules/${id}` }, text || id);
+const ruleLinks = (ids) => ids.map((id, i) => [i ? ', ' : null, ruleLink(id)]);
+// Links to other sites come from files in this project, but only https addresses are ever turned into links.
+const safeHttps = (u) => (typeof u === 'string' && /^https:\/\//.test(u) ? u : null);
+function extLink(href, text) {
+  const u = safeHttps(href);
+  return u ? h('a', { href: u, target: '_blank', rel: 'noopener noreferrer' }, text, ' ', icon('external', 13)) : h('span', null, text);
+}
+function levelSwatch(lvl, size = 18) {
+  return h('span', { class: `swatch lv${lvl}`, style: `width:${size}px;height:${size}px`, 'aria-hidden': 'true' }, lvl ? String(lvl) : '');
+}
+const levelChip = (lvl) => h('span', { class: 'verdict' }, levelSwatch(lvl), LEVEL_TEXT[lvl]);
+const labelText = { attack: 'Attack event', other: 'Side effect', unlabeled: 'Not labeled' };
+function labelChip(label) {
+  const g = label === 'attack' ? glyph('TP') : label === 'other' ? glyph('related') : icon('minus', 12);
+  return h('span', { class: 'verdict' }, g, labelText[label] || label);
+}
+function attackUrl(id) {
+  const m = /^T(\d{4})(?:\.(\d{3}))?$/.exec(id);
+  return m ? `https://attack.mitre.org/techniques/T${m[1]}/${m[2] ? m[2] + '/' : ''}` : null;
+}
+function kvList(rows) {
+  return h('dl', { class: 'kv' }, rows.filter(Boolean).map(([k, v]) => [h('dt', null, k), h('dd', null, v)]));
+}
+function copyButton(getText) {
+  const copy = h('button', { class: 'btn', type: 'button' }, icon('copy', 15), 'Copy');
+  const note = h('span', { class: 'cap', role: 'status' });
+  copy.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(getText()); note.textContent = 'Copied'; }
+    catch (e) { note.textContent = 'Select the text and press Ctrl+C.'; }
+    setTimeout(() => { note.textContent = ''; }, 2000);
+  });
+  return [copy, note];
+}
+
+/* ---------- tooltip (enhances, never required: every value is also in a table) ---------- */
+const tip = $('#tip');
+function showTip(target, lines) {
+  tip.replaceChildren(h('strong', null, lines[0]), ...lines.slice(1).map((l) => h(l.startsWith('~') ? 'em' : 'span', null, l.replace(/^~/, ''))));
+  tip.hidden = false;
+  const r = target.getBoundingClientRect(), w = tip.offsetWidth, hgt = tip.offsetHeight;
+  let top = r.top - hgt - 8; if (top < 8) top = r.bottom + 8;
+  let left = r.left + r.width / 2 - w / 2; left = Math.max(8, Math.min(left, innerWidth - w - 8));
+  tip.style.top = top + 'px'; tip.style.left = left + 'px';
+}
+const hideTip = () => { tip.hidden = true; };
+addEventListener('scroll', hideTip, { passive: true });
+
+/* =====================================================================
+   State and server calls
+   ===================================================================== */
+const state = { data: null, tuned: true, tableView: false, filters: { verdict: 'all', rule: 'all', q: '' },
+  drafts: {}, tests: {}, caseCache: {}, busy: false, ruleQ: '', allLanes: false, realSplit: 'all', covGroup: '' };
+
+// The static copy of the site carries every answer the server would give, so the same page works without a server.
+function snapResponse(path) {
+  const u = new URL(path, 'http://snapshot.invalid');
+  const q = (k) => u.searchParams.get(k) || '';
+  const has = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
+  const miss = () => { throw new Error('That item is not in this copy.'); };
+  let body, type = 'application/json';
+  if (u.pathname === '/api/lab') body = SNAP.payload;
+  else if (u.pathname === '/api/alert') body = has(SNAP.alerts, q('id')) ? SNAP.alerts[q('id')] : miss();
+  else if (u.pathname === '/api/case') body = has(SNAP.cases, q('id')) ? SNAP.cases[q('id')] : miss();
+  else if (u.pathname === '/api/report') { type = 'text/markdown'; body = has(SNAP.reports, q('name')) ? SNAP.reports[q('name')] : miss(); }
+  else if (u.pathname === '/api/case-report') { type = 'text/markdown'; body = has(SNAP.reports, q('id') + '.md') ? SNAP.reports[q('id') + '.md'] : miss(); }
+  else miss();
+  return new Response(typeof body === 'string' ? body : JSON.stringify(body), { status: 200, headers: { 'Content-Type': type } });
+}
+
+async function api(path, body) {
+  if (SNAP) {
+    if (body !== undefined) throw new Error('This is a read-only copy of the lab. To change the logs or test an edited rule, run the lab on your own computer (see the About page).');
+    return snapResponse(path);
+  }
+  let res;
+  try {
+    res = await fetch(path, body === undefined
+      ? { headers: { 'X-Lab-Token': TOKEN } }
+      : { method: 'POST', headers: { 'X-Lab-Token': TOKEN, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  } catch (err) {
+    throw new Error('I cannot reach the lab. Check that the terminal window is still open, then reload this page.');
+  }
+  if (!res.ok) {
+    let msg = 'Something went wrong.';
+    try { msg = (await res.json()).error || msg; } catch (e) { /* keep the generic message */ }
+    throw new Error(msg);
+  }
+  return res;
+}
+const getJson = async (path) => (await api(path)).json();
+const postJson = async (path, body) => (await api(path, body)).json();
+
+async function saveFile(path, name) {
+  const res = await api(path);
+  const url = URL.createObjectURL(await res.blob());
+  const a = h('a', { href: url, download: name });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/* =====================================================================
+   Overview
+   ===================================================================== */
+function headline(d) {
+  const t = d.overall.tuned, u = d.overall.untuned;
+  const total = d.attacks.length, found = d.attacks.filter((a) => a.caught).length;
+  const first = u.alerts > t.alerts ? `Tuning cut ${u.alerts} alerts to ${t.alerts}` : `The rules raised ${t.alerts} alerts`;
+  const second = found === total ? `, and all ${total} attacks are still found.` : `, but only ${found} of ${total} attacks are found.`;
+  return first + second;
+}
+function rankingLine(rk) {
+  if (!rk || !rk.false_cases || rk.pairs_ordered == null) return '';
+  if (rk.pairs_ordered === 1) return rk.false_cases === 1 ? 'The one false-alarm case ranks below every attack case.' : `All ${rk.false_cases} false-alarm cases rank below every attack case.`;
+  return `${pct(rk.pairs_ordered)} of attack and false-alarm case pairs are in the right order.`;
+}
+function overviewTiles(d, found, total) {
+  const t = d.overall.tuned, u = d.overall.untuned, cs = d.case_summary, rt = d.redteam, sm = d.coverage.summary;
+  const ts = d.tests_summary, rp = d.replay, gaps = rt.total - rt.caught;
+  const tile = (label, big, text, href, linkText) => h('li', null,
+    h('span', { class: 'fl' }, label), h('span', { class: 'big' }, big), h('p', null, text), h('a', { href }, linkText));
+  const out = [];
+  if (rp && rp.first_run) {
+    const hs = rp.by_split.holdout, fr = rp.first_run.summary;
+    out.push(tile('Real attack recordings, holdout set', `${hs.expectations_hit} of ${hs.expectations}`,
+      `expected detections fired on ${hs.datasets} holdout recordings, counted after the fixes that followed the first run. Before any fix: ${fr.expectations_hit} of ${fr.expectations}.`,
+      '#/real', 'See the results'));
+  } else if (rp) {
+    out.push(tile('Real attack recordings', `${rp.summary.expectations_hit} of ${rp.summary.expectations}`,
+      `expected detections fired across ${rp.summary.datasets} public recordings.`, '#/real', 'See the results'));
+  } else {
+    out.push(tile('Real attack recordings', 'Not in this copy', 'The replay folder is missing, so only the made-up logs are measured.', '#/about', 'How to add them'));
+  }
+  out.push(tile('Planted attacks found (made-up logs)', `${found} of ${total}`,
+    `${d.meta.days} days of logs. Tuning cut ${u.alerts} alerts to ${t.alerts}, and ${plural(t.fp, 'false alarm')} ${t.fp === 1 ? 'is' : 'are'} left.`, '#/alerts', 'See the alerts'));
+  out.push(tile('Incident cases', String(cs.cases),
+    `${plural(cs.alerts, 'alert')} grouped into ${plural(cs.cases, 'case')} and ranked by risk. ${rankingLine(d.ranking)}`.trim(), '#/cases', 'Open the cases'));
+  out.push(tile('Red-team evasion attacks caught', `${rt.caught} of ${rt.total}`,
+    gaps ? `Written to slip past the rules. ${plural(gaps, 'gap')} stay open, each with what would close it.` : 'Written to slip past the rules. No gaps remain in this run.', '#/redteam', 'See the gaps'));
+  out.push(tile('Unit tests passing', `${ts.passed} of ${ts.total}`,
+    `${ts.exclusions_proven} of ${ts.exclusions} exclusions are proven by a test that fails without them. ${ts.edits_caught} of ${ts.edits} small edits to the rules are noticed by a test.`, '#/rules', 'Open the rules'));
+  out.push(tile('ATT&CK techniques with a rule', `${sm.parents_with_any} of ${sm.parents}`,
+    `ATT&CK v${d.coverage.attack.version}. Most of it has no rule yet, and the map shows that.`, '#/coverage', 'Open the map'));
+  return out;
+}
+function viewOverview() {
+  const d = state.data, t = d.overall.tuned, u = d.overall.untuned;
+  const total = d.attacks.length, found = d.attacks.filter((a) => a.caught).length;
+
+  const lead = h('section', { class: 'lead' },
+    h('h1', null, `${d.rules.length} detection rules, tested three ways.`),
+    h('p', { class: 'sub' },
+      'Each rule is a text file with its own unit tests and a written reason for everything it ignores. They were measured on made-up logs with attacks planted in them, on public recordings of real attack tools, and against attacks written to slip past them.'),
+    h('p', { class: 'note' },
+      'This is a lab, not production experience. The made-up logs show that the method works, not how these rules would do on your network. The recordings are short attack runs from a public research project, not busy networks.'));
+
+  const lanePanel = h('section', { class: 'panel', 'aria-labelledby': 'lanes-h' });
+  const alerts = state.tuned ? d.alerts.tuned : d.alerts.untuned;
+  const nTP = alerts.filter((a) => a.verdict === 'TP').length, nFP = alerts.filter((a) => a.verdict === 'FP').length;
+  const nRel = alerts.filter((a) => a.verdict === 'related').length;
+  const withAlerts = new Set(alerts.map((a) => a.rule_id));
+  const quiet = d.rules.filter((r) => !withAlerts.has(r.id)).length;
+  const laneRules = state.allLanes ? d.rules : d.rules.filter((r) => withAlerts.has(r.id));
+  lanePanel.append(
+    h('div', { class: 'panel-head' },
+      h('div', null, h('h2', { id: 'lanes-h' }, 'Made-up logs: when each rule fired'),
+        h('p', { class: 'cap' }, `${headline(d)} Each mark is one alert in ${d.meta.days} days of logs. Select a mark to see its evidence.`)),
+      h('div', { style: 'display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start' },
+        seg('Tuning', [[true, 'With tuning'], [false, 'No tuning']], state.tuned, (v) => { state.tuned = v; render(); }),
+        state.tableView || !quiet ? null : h('button', { class: 'btn', type: 'button', onclick: () => { state.allLanes = !state.allLanes; render(); } },
+          state.allLanes ? 'Hide rules with no alerts' : `Show ${plural(quiet, 'rule')} with no alerts`),
+        h('button', { class: 'btn', type: 'button', onclick: () => { state.tableView = !state.tableView; render(); } },
+          state.tableView ? 'Show chart' : 'Show table'))),
+    h('div', { class: 'legend' },
+      h('span', null, glyph('TP'), `Real attack (${nTP})`),
+      h('span', null, glyph('FP'), `False alarm (${nFP})`),
+      nRel ? h('span', null, glyph('related'), `Part of another attack (${nRel})`) : null,
+      h('span', null, s('svg', { width: 18, height: 8, 'aria-hidden': 'true' }, s('rect', { width: 18, height: 8, rx: 4, fill: 'var(--attack)' })), 'Hidden attack planted in the logs')),
+    state.tableView
+      ? h('div', { class: 'panel-body' }, alertTable(alerts, { compact: true }))
+      : h('div', { id: 'lanes' }));
+
+  const ttd = h('section', { class: 'sec' },
+    h('h2', null, 'How fast each attack was found'),
+    h('p', { class: 'cap' }, 'Time from the attack’s first malicious event to the first alert. 0 s means the rule fires on the malicious event itself.'),
+    h('div', { style: 'margin-top:12px' }, ttdList(d)));
+
+  const reports = h('section', { class: 'sec' },
+    h('h2', null, 'Reports'),
+    h('p', { class: 'cap' }, 'The same numbers as text files you can read, attach, or paste into a GitHub page.'),
+    h('div', { style: 'display:flex;gap:10px;flex-wrap:wrap;margin-top:12px' },
+      downloadBtn('/api/report?name=detection_report.md', 'detection_report.md', 'Detection report'),
+      downloadBtn('/api/report?name=evasion_report.md', 'evasion_report.md', 'Red-team report')),
+    h('p', { class: 'cap', style: 'margin-top:14px' }, 'Want to change a rule and see what happens?'),
+    h('a', { class: 'btn', href: '#/playground', style: 'margin-top:6px' }, icon('play', 14), SNAP ? 'Read a rule file' : 'Open the playground'));
+
+  const view = h('div', { class: 'stack' }, lead,
+    h('ul', { class: 'tiles', 'aria-label': 'Summary' }, overviewTiles(d, found, total)),
+    lanePanel, h('div', { class: 'two' }, ttd, reports));
+  mount(view);
+  if (!state.tableView) drawLanes($('#lanes'), d, alerts, laneRules);
+}
+function downloadBtn(path, name, label) {
+  const b = h('button', { class: 'btn', type: 'button' }, icon('download', 15), label);
+  b.addEventListener('click', async () => {
+    b.disabled = true;
+    try { await saveFile(path, name); } catch (err) { setStatus(err.message, true); }
+    b.disabled = false;
+  });
+  return b;
+}
+function ttdList(d) {
+  const max = Math.max(60, ...d.attacks.map((a) => a.ttd_seconds || 0));
+  return h('ul', { class: 'ttd' }, d.attacks.map((a) => {
+    const ok = a.caught && a.ttd_seconds != null;
+    const w = ok ? Math.max(a.ttd_seconds > 0 ? 3 : 0, (a.ttd_seconds / max) * 78) : 0;
+    const label = ok ? fmtDur(a.ttd_seconds) : null;
+    return h('li', null,
+      h('div', { class: 'ttd-top' }, h('span', { class: 'ttd-name' }, a.name), h('span', { class: 'ttd-rule' }, a.first_rule || '')),
+      h('div', { class: 'ttd-line', role: 'img', 'aria-label': ok ? `${a.name}: found after ${label}` : `${a.name}: not found` },
+        ok ? [h('div', { class: 'ttd-bar', style: `width:${w}%` }), h('span', { class: 'ttd-val', style: `left:${w}%` }, label)]
+           : h('span', { class: 'ttd-val', style: 'left:0' }, status('bad', 'Not found'))));
+  }));
+}
+
+/* ---------- the lane chart ---------- */
+function drawLanes(root, d, alerts, ruleList) {
+  const render = () => {
+    root.replaceChildren();
+    const W = Math.max(320, Math.floor(root.clientWidth));
+    const narrow = W < 640, gut = narrow ? 58 : 232, padR = 20, rowH = 38, top = 6, axisH = 30;
+    const rows = [{ key: 'attacks' }, ...ruleList.map((r) => ({ key: r.id, rule: r }))];
+    const H = top + rows.length * rowH + axisH;
+    const t0 = d.timeline.start, t1 = d.timeline.end, plotW = W - gut - padR;
+    const x = (t) => gut + ((t - t0) / (t1 - t0)) * plotW;
+    const svg = s('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'group',
+      'aria-label': 'Chart of alerts over time, one row per rule. The same data is in the table view.' });
+
+    const pxPerDay = plotW / d.meta.days, stepDays = [1, 2, 3, 4, 5, 7, 10].find((n) => n * pxPerDay >= 80) || 10;
+    for (let day = 0; day <= d.meta.days; day += stepDays) {
+      const tx = x(t0 + day * 86400);
+      svg.append(s('line', { class: 'grid', x1: tx, x2: tx, y1: top, y2: top + rows.length * rowH }));
+      svg.append(s('text', { class: 'tick', x: tx, y: H - 9, 'text-anchor': day === 0 ? 'start' : (tx > W - 34 ? 'end' : 'middle') }, fmtDay(t0 + day * 86400)));
+    }
+    rows.forEach((row, i) => {
+      const cy = top + i * rowH + rowH / 2;
+      svg.append(s('line', { class: 'track', x1: gut, x2: W - padR, y1: cy, y2: cy }));
+      if (row.key === 'attacks') {
+        svg.append(s('text', { class: 'lane-id', x: 2, y: cy + 4.5 }, narrow ? 'Attacks' : 'Hidden attacks'));
+      } else {
+        const label = s('a', { href: `#/rules/${row.key}`, 'aria-label': `${row.key}, ${row.rule.title}. Open the rule.` },
+          s('text', { class: 'lane-id', x: 2, y: cy + 4.5 }, row.key),
+          narrow ? null : s('text', { class: 'lane-name', x: 64, y: cy + 4.5 }, shortTitle(row.rule.title)));
+        if (!narrow) label.append(s('title', null, row.rule.title));
+        svg.append(label);
+      }
+    });
+    // planted attacks (reference marks)
+    d.attacks.forEach((a) => {
+      if (a.start == null) return;
+      const cy = top + rowH / 2, x1 = x(a.start), w = Math.max(10, x(a.end) - x1);
+      const g = s('g', { class: 'mark attack', tabindex: '0', role: 'img',
+        'aria-label': `${a.id}, ${a.name}. ${a.caught ? 'Found by ' + a.first_rule + ' after ' + fmtDur(a.ttd_seconds) : 'Not found'}.` },
+        s('rect', { class: 'hit', x: x1 - 6, y: cy - 12, width: w + 12, height: 24, rx: 6 }),
+        s('rect', { class: 'glyph bar-attack', x: x1, y: cy - 4, width: w, height: 8, rx: 4 }));
+      const lines = [`${a.id} ${a.name}`, `${fmtDay(a.start)}, ${new Date(a.start * 1000).toISOString().slice(11, 16)} UTC`,
+        a.caught ? `Found by ${a.first_rule} after ${fmtDur(a.ttd_seconds)}` : 'Not found by any rule'];
+      g.addEventListener('pointerenter', () => showTip(g, lines)); g.addEventListener('pointerleave', hideTip);
+      g.addEventListener('focus', () => showTip(g, lines)); g.addEventListener('blur', hideTip);
+      svg.append(g);
+    });
+    // alerts
+    const rowOf = Object.fromEntries(rows.map((r, i) => [r.key, i]));
+    // Alerts minutes apart land on the same pixel on a multi-day axis. Stack them above and below the lane's
+    // centre line (and nudge sideways if that is still crowded) so each one can be seen and selected.
+    const pos = new Map(), placedBy = {};
+    [...alerts].sort((p, q) => p.fired_t - q.fired_t).forEach((a) => {
+      const i = rowOf[a.rule_id]; if (i == null) return;
+      const placed = placedBy[i] || (placedBy[i] = []), base = x(a.fired_t);
+      let spot = null;
+      for (let shift = 0; !spot; shift += 11) {
+        const slot = [0, -9, 9].find((sl) => !placed.some((p) => p.slot === sl && Math.abs(p.x - (base + shift)) < 12));
+        if (slot !== undefined) spot = { x: base + shift, slot };
+      }
+      placed.push(spot);
+      pos.set(a.id, { cx: spot.x, cy: top + i * rowH + rowH / 2 + spot.slot, lane: i, hit: 13 });
+    });
+    // Every mark gets a 26px click area, except in crowded spots, where a smaller one keeps each mark's own centre
+    // from falling inside a neighbour's area (marks are at least 9px apart, so an 8px radius never overlaps a centre).
+    for (const m of pos.values()) {
+      if ([...pos.values()].some((o) => o !== m && o.lane === m.lane && Math.abs(o.cx - m.cx) < 26)) m.hit = 8;
+    }
+    alerts.forEach((a) => {
+      const i = rowOf[a.rule_id]; if (i == null) return;
+      const { cx, cy, hit } = pos.get(a.id);
+      let shape;
+      if (a.verdict === 'FP') shape = [s('path', { class: 'ring', d: `M${cx} ${cy - 8.5}L${cx + 8.5} ${cy}L${cx} ${cy + 8.5}L${cx - 8.5} ${cy}Z` }),
+        s('path', { class: 'dot-fp', d: `M${cx} ${cy - 6.5}L${cx + 6.5} ${cy}L${cx} ${cy + 6.5}L${cx - 6.5} ${cy}Z` })];
+      else if (a.verdict === 'related') shape = [s('circle', { class: 'ring', cx, cy, r: 7 }), s('circle', { class: 'dot-rel', cx, cy, r: 4 })];
+      else shape = [s('circle', { class: 'ring', cx, cy, r: 7 }), s('circle', { class: 'dot-tp', cx, cy, r: 5 })];
+      const g = s('g', { class: 'mark', tabindex: '0', role: 'button',
+        'aria-label': `${a.id}, ${a.rule_id}, ${VERDICT_TEXT[a.verdict]}, ${describeEntity(a.entity)}, fired ${fmtIso(a.fired_ts)} UTC. Press Enter for evidence.` },
+        s('circle', { class: 'hit', cx, cy, r: hit }), s('g', { class: 'glyph' }, ...shape));
+      const lines = [`${a.rule_id}  ${VERDICT_TEXT[a.verdict]}`, describeEntity(a.entity), `${fmtIso(a.fired_ts)} UTC`,
+        a.attacks.length ? `Part of ${a.attacks.join(', ')}` : '~Select for evidence'];
+      g.addEventListener('pointerenter', () => showTip(g, lines)); g.addEventListener('pointerleave', hideTip);
+      g.addEventListener('focus', () => showTip(g, lines)); g.addEventListener('blur', hideTip);
+      g.addEventListener('click', () => { hideTip(); openAlert(a.id); });
+      g.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); hideTip(); openAlert(a.id); } });
+      svg.append(g);
+    });
+    root.append(svg);
+  };
+  render();
+  let last = root.clientWidth;
+  const ro = new ResizeObserver(() => { if (!root.isConnected) { ro.disconnect(); return; } if (Math.abs(root.clientWidth - last) > 4) { last = root.clientWidth; render(); } });
+  ro.observe(root);
+}
+
+/* =====================================================================
+   Alerts (table, evidence drawer)
+   ===================================================================== */
+function alertTable(list, opts = {}) {
+  if (!list.length) return h('p', { class: 'empty' }, 'No alerts match these filters.');
+  const head = ['Alert', 'Fired (UTC)', 'Rule', 'Severity', 'Who or what', 'Result'];
+  if (!opts.compact && state.tuned) head.push('Case');
+  const rows = list.map((a) => {
+    const tr = h('tr', { class: 'click', onclick: (e) => { if (!e.target.closest('a, button')) openAlert(a.id); } },
+      h('td', null, h('button', { class: 'idbtn', type: 'button', onclick: () => openAlert(a.id) }, a.id)),
+      h('td', { class: 'nowrap' }, fmtIso(a.fired_ts)),
+      h('td', null, h('a', { href: `#/rules/${a.rule_id}` }, a.rule_id), ' ', h('span', { class: 'muted' }, shortTitle(a.title))),
+      h('td', null, sev(a.severity)),
+      h('td', null, describeEntity(a.entity)),
+      h('td', null, verdict(a.verdict)));
+    if (!opts.compact && state.tuned) tr.append(h('td', null, a.case_id ? h('a', { href: `#/cases/${a.case_id}` }, a.case_id) : ''));
+    return tr;
+  });
+  return h('div', null, table(head, rows, { caption: 'Alerts' }), h('p', { class: 'cap scrollhint' }, 'Scroll sideways to see every column.'));
+}
+function viewAlerts() {
+  const d = state.data, f = state.filters;
+  const all = state.tuned ? d.alerts.tuned : d.alerts.untuned;
+  const q = f.q.trim().toLowerCase();
+  const list = all.filter((a) => (f.verdict === 'all' || a.verdict === f.verdict) && (f.rule === 'all' || a.rule_id === f.rule)
+    && (!q || (a.id + ' ' + a.rule_id + ' ' + a.title + ' ' + describeEntity(a.entity) + ' ' + a.summary).toLowerCase().includes(q)));
+
+  const ruleSel = h('select', { id: 'f-rule', 'aria-label': 'Filter by rule', onchange: (e) => { f.rule = e.target.value; render(); } },
+    h('option', { value: 'all' }, 'All rules'), d.rules.map((r) => h('option', { value: r.id, selected: f.rule === r.id }, `${r.id} ${shortTitle(r.title)}`)));
+  const verSel = h('select', { id: 'f-verdict', 'aria-label': 'Filter by result', onchange: (e) => { f.verdict = e.target.value; render(); } },
+    [['all', 'All results'], ['TP', 'Real attacks'], ['FP', 'False alarms']].map(([v, t]) => h('option', { value: v, selected: f.verdict === v }, t)));
+  const search = h('input', { type: 'search', id: 'f-q', placeholder: 'Search alerts', 'aria-label': 'Search alerts', value: f.q,
+    oninput: (e) => { f.q = e.target.value; const pos = e.target.selectionStart; render(); const n = $('#f-q'); n.focus(); n.setSelectionRange(pos, pos); } });
+
+  mount(h('div', { class: 'stack' },
+    h('section', { class: 'lead' }, h('h1', { style: 'font-size:28px' }, 'Alerts'),
+      h('p', { class: 'sub' }, state.tuned
+        ? 'Every alert the tuned rules raised. Select one to see the exact log events behind it.'
+        : 'Every alert with no exclusions applied. The orange diamonds are the false alarms that tuning removes.')),
+    h('section', null,
+      h('div', { class: 'filters' },
+        seg('Tuning', [[true, 'With tuning'], [false, 'No tuning']], state.tuned, (v) => { state.tuned = v; render(); }),
+        verSel, ruleSel, search, h('span', { class: 'count' }, `Showing ${list.length} of ${all.length}`)),
+      h('div', { class: 'panel' }, alertTable(list)))));
+}
+
+/* ---------- drawer ---------- */
+let drawerReturn = null;
+function closeDrawer() {
+  const layer = $('#layer'); if (!layer.firstChild) return;
+  layer.replaceChildren(); document.body.style.overflow = '';
+  if (drawerReturn && drawerReturn.isConnected) drawerReturn.focus();
+  drawerReturn = null;
+}
+function openDrawer(title, body) {
+  closeDrawer(); hideTip();
+  drawerReturn = document.activeElement;
+  const closeBtn = h('button', { class: 'btn quiet', type: 'button', 'aria-label': 'Close', onclick: closeDrawer }, icon('close', 18));
+  const panel = h('div', { class: 'drawer', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'drawer-h' },
+    h('div', { class: 'drawer-head' }, h('h2', { id: 'drawer-h' }, title), closeBtn), body);
+  panel.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); closeDrawer(); return; }
+    if (e.key !== 'Tab') return;
+    const f = [...panel.querySelectorAll('a[href], button:not([disabled]), input, select, textarea, [tabindex="0"], summary')];
+    if (!f.length) return;
+    const first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  });
+  $('#layer').append(h('div', { class: 'scrim', onclick: closeDrawer }), panel);
+  document.body.style.overflow = 'hidden';
+  closeBtn.focus();
+  return panel;
+}
+async function openAlert(id) {
+  const body = h('div', { class: 'drawer-body' }, h('p', { class: 'muted' }, 'Loading the evidence...'));
+  const panel = openDrawer(id, body);
+  try {
+    const r = await getJson('/api/alert?id=' + encodeURIComponent(id));
+    const a = r.alert;
+    $('#drawer-h', panel).textContent = a.title;
+    const why = a.verdict === 'TP'
+      ? `At least one of these events is part of ${a.attacks.join(', ')}, a planted attack. This alert is a real detection.`
+      : a.verdict === 'related'
+        ? `These events belong to ${a.attacks.join(', ')}, a different attack than the one this rule is meant to find.`
+        : 'None of these events are part of a planted attack. This alert is a false alarm.';
+    const cols = [['ts', 'Time (UTC)'], ['action', 'Action'], ['outcome', 'Result'], ['user', 'User'], ['target_user', 'Target user'],
+      ['src_ip', 'Source IP'], ['country', 'Country'], ['service', 'Service'], ['host', 'Host'], ['process_name', 'Process'],
+      ['parent_process', 'Started by'], ['command_line', 'Command line'], ['group', 'Group']]
+      .filter(([k]) => r.events.some((e) => e[k] != null && e[k] !== ''));
+    const evRows = r.events.map((e) => h('tr', null, cols.map(([k]) => h('td', { class: k === 'ts' ? 'nowrap' : '' },
+      k === 'ts' ? fmtIso(e.ts) : k === 'command_line' ? h('code', null, e[k]) : (e[k] == null ? '' : showValue(e[k]))))));
+    fill(body,
+      h('dl', { class: 'kv' },
+        h('dt', null, 'Result'), h('dd', null, verdict(a.verdict)),
+        h('dt', null, 'Why'), h('dd', null, why),
+        h('dt', null, 'Rule'), h('dd', null, h('a', { href: `#/rules/${a.rule_id}`, onclick: closeDrawer }, a.rule_id), '  ', sev(a.severity)),
+        h('dt', null, 'ATT&CK'), h('dd', null, `${a.tactic}, ${a.technique}`),
+        h('dt', null, 'Who or what'), h('dd', null, describeEntity(a.entity)),
+        h('dt', null, 'First event'), h('dd', null, fmtIso(a.first_ts) + ' UTC'),
+        h('dt', null, 'Alert fired'), h('dd', null, fmtIso(a.fired_ts) + ' UTC'),
+        h('dt', null, 'Summary'), h('dd', null, a.summary),
+        a.case_id ? [h('dt', null, 'Case'), h('dd', null, h('a', { href: `#/cases/${a.case_id}`, onclick: closeDrawer }, a.case_id))] : null),
+      section('Log events behind this alert',
+        r.total_events > r.events.length ? h('p', { class: 'cap' }, `Showing the first ${r.events.length} of ${r.total_events} events.`) : null,
+        h('div', { class: 'panel', style: 'margin-top:8px' }, table(cols.map(([, t]) => t), evRows, { caption: 'Log events' }))),
+      section('Questions to ask', steps(r.triage, false)),
+      section('What to do', steps(r.response, true)));
+  } catch (err) {
+    body.replaceChildren(h('p', { class: 'errors' }, err.message));
+  }
+}
+
+/* =====================================================================
+   Rules
+   ===================================================================== */
+function recordingsFor(rule) {
+  const rp = state.data.replay;
+  if (!rp) return [];
+  const rows = [];
+  for (const ds of rp.datasets) {
+    const fired = ds.alerts.filter((a) => a.rule_id === rule.id);
+    const expected = ds.expected.includes(rule.id);
+    if (!fired.length && !expected) continue;
+    const result = ds.hit.includes(rule.id) ? 'hit' : ds.missed.includes(rule.id) ? 'missed' : ds.no_data.includes(rule.id) ? 'no_data' : 'extra';
+    rows.push({ ds, fired, expected, result });
+  }
+  return rows;
+}
+const RESULT_TEXT = { hit: 'Fired as expected', missed: 'Missed', no_data: 'Could not be tested', extra: 'Also fired (not expected)' };
+function recordingStatus(result) {
+  return result === 'hit' ? status('ok', RESULT_TEXT.hit) : result === 'missed' ? status('bad', RESULT_TEXT.missed)
+    : result === 'no_data' ? status('same', RESULT_TEXT.no_data) : status('same', RESULT_TEXT.extra);
+}
+function exportSection(r) {
+  const d = state.data, tools = d.sigma_summary.tools || {};
+  const names = { sigma: 'Sigma rule', splunk: 'Splunk (SPL)', kql: 'Microsoft Sentinel (KQL)' };
+  const tabs = [];
+  if (r.sigma.status === 'exported') tabs.push('sigma');
+  for (const k of ['splunk', 'kql']) if (r.queries[k] != null || (r.query_status && r.query_status[k])) tabs.push(k);
+  const toolText = ['splunk', 'kusto'].filter((k) => tools[k]).map((k) =>
+    `${k === 'splunk' ? 'Splunk' : 'Sentinel'}: pySigma ${tools[k].pysigma} with backend ${tools[k].backend}`).join('; ');
+  const intro = h('p', { class: 'cap', style: 'margin-bottom:8px' },
+    'Generated from the rule by the lab; do not edit these by hand. Sigma holds the detection logic only. The exclusions stay in the rule file and appear in Sigma as known false positives. ' +
+    (toolText ? `Queries were converted with ${toolText}. ` : '') + 'They have not been run on a live SIEM, and field names depend on how your logs are mapped. If a conversion failed, the tab says so instead of showing a query.');
+  if (!tabs.length) {
+    return section('Sigma and SIEM queries', intro,
+      h('div', { class: 'callout warn' }, h('strong', null, 'Not exported. '), r.sigma.reason ? cap1(r.sigma.reason) + '.' : 'No Sigma form exists for this rule.',
+        ' The rule runs in this lab’s own engine, which can count, sequence and compare things that Sigma cannot.'));
+  }
+  let kind = tabs[0];
+  const note = h('div'), code = h('pre', { class: 'sql', tabindex: '0', role: 'region', 'aria-label': 'Query text' });
+  const bar = h('div', { class: 'tabs' });
+  const show = () => {
+    const text = kind === 'sigma' ? r.sigma.yaml : r.queries[kind];
+    const qs = kind === 'sigma' ? null : (r.query_status || {})[kind];
+    code.textContent = text || '';
+    code.hidden = !text;
+    const msgs = [];
+    if (qs && qs.status !== 'ok') msgs.push(h('div', { class: 'callout warn' }, h('strong', null, 'Not converted. '), qs.error || 'The converter could not produce a query for this rule.'));
+    if (qs && qs.notes && qs.notes.length) msgs.push(h('div', { class: 'callout warn' }, h('strong', null, 'Partly converted. '), qs.notes.join(' ')));
+    fill(note, msgs);
+    fill(bar, seg('Format', tabs.map((k) => [k, names[k]]), kind, (k) => { kind = k; show(); }), text ? copyButton(() => code.textContent) : null);
+  };
+  show();
+  const missing = ['splunk', 'kql'].filter((k) => !tabs.includes(k)).map((k) => names[k]);
+  return section('Sigma and SIEM queries', intro, bar, note, code,
+    r.sigma.status !== 'exported' ? h('p', { class: 'cap', style: 'margin-top:8px' }, 'Not exported as Sigma: ' + r.sigma.reason + '.') : null,
+    missing.length ? h('p', { class: 'cap', style: 'margin-top:8px' }, `No ${missing.join(' or ')} query for this rule.`) : null);
+}
+function viewRules(arg) {
+  const d = state.data, r = d.rules.find((x) => x.id === arg) || d.rules[0];
+
+  const listBox = h('nav', { class: 'list scroll', 'aria-label': 'Rules' });
+  const count = h('p', { class: 'cap', role: 'status', 'aria-live': 'polite' });
+  const drawList = () => {
+    const q = state.ruleQ.trim().toLowerCase();
+    const shown = d.rules.filter((x) => !q || `${x.id} ${x.title} ${x.tactic} ${x.technique} ${x.technique_name}`.toLowerCase().includes(q));
+    fill(listBox, shown.length ? shown.map((x) => {
+      const st = x.stats.tuned;
+      return h('a', { class: 'item', href: `#/rules/${x.id}`, 'aria-current': x.id === r.id ? 'true' : null },
+        h('div', { class: 'item-top' }, h('span', { class: 'item-id' }, x.id), sev(x.severity)),
+        h('div', { class: 'item-title' }, shortTitle(x.title)),
+        h('div', { class: 'item-meta' }, `${x.tactic}, ${x.technique}`),
+        h('div', { class: 'item-meta' }, st.alerts ? `${plural(st.alerts, 'alert')}, ${pct(st.precision)} real` : 'No alerts in this run'));
+    }) : h('p', { class: 'empty' }, 'No rule matches.'));
+    count.textContent = `Showing ${shown.length} of ${d.rules.length}`;
+  };
+  const search = h('input', { type: 'search', id: 'rule-q', placeholder: 'Find a rule', 'aria-label': 'Find a rule by number, name or technique', value: state.ruleQ,
+    oninput: (e) => { state.ruleQ = e.target.value; drawList(); } });
+  drawList();
+
+  const statRow = (label, st) => h('tr', null, h('th', { scope: 'row', style: 'font-weight:600' }, label),
+    h('td', { class: 'num' }, st.alerts), h('td', { class: 'num' }, st.tp), h('td', { class: 'num' }, st.fp),
+    h('td', { class: 'num' }, pct(st.precision)), h('td', { class: 'num' }, `${st.detected} of ${st.expected}`));
+  const perf = table(['Tuning', { label: 'Alerts', num: true }, { label: 'Real', num: true }, { label: 'False alarms', num: true },
+    { label: 'Precision', num: true }, { label: 'Attacks found', num: true }],
+    [statRow('With tuning', r.stats.tuned), statRow('No tuning', r.stats.untuned)], { caption: 'How this rule performed' });
+
+  const passed = r.tests.filter((t) => t.passed).length;
+  const proven = r.exclusion_proofs.filter((p) => p.exercised).length;
+  const recs = recordingsFor(r);
+  const hits = recs.filter((x) => x.result === 'hit').length, expectedRecs = recs.filter((x) => x.expected).length;
+  const glance = h('dl', { class: 'glance' },
+    [['Unit tests', r.tests.length ? h('span', null, status(passed === r.tests.length ? 'ok' : 'bad', `${passed} of ${r.tests.length} pass`)) : h('span', { class: 'muted' }, 'None')],
+      ['Exclusions', r.exclusions.length ? h('span', null, status(proven === r.exclusions.length ? 'ok' : 'bad', `${proven} of ${r.exclusions.length} proven`)) : h('span', { class: 'muted' }, 'None')],
+      ['Made-up logs', r.stats.tuned.expected ? `${r.stats.tuned.detected} of ${r.stats.tuned.expected} attacks found` : h('span', { class: 'muted' }, 'No planted attack aimed at it')],
+      ['Real recordings', expectedRecs ? `fired in ${hits} of ${expectedRecs} expected` : recs.length ? h('span', null, `fired in ${plural(recs.length, 'other recording')}`) : h('span', { class: 'muted' }, 'Not expected in any')],
+      ['Sigma', r.sigma.status === 'exported' ? 'Exported' : h('span', { class: 'muted' }, 'Not exported')]]
+      .map(([k, v]) => h('div', null, h('dt', null, k), h('dd', null, v))));
+
+  const testRows = r.tests.map((t) => h('tr', null,
+    h('td', null, t.name, t.passed ? null : h('div', { class: 'muted' }, t.message)),
+    h('td', { class: 'nowrap' }, t.expect === 'fire' ? 'Fires' : 'Stays quiet'),
+    h('td', { class: 'nowrap' }, t.passed ? status('ok', 'Pass') : status('bad', 'Fail'))));
+
+  const proofOf = (i) => r.exclusion_proofs.find((p) => p.index === i + 1);
+  const recRows = recs.map((x) => h('tr', null,
+    h('td', null, h('button', { class: 'idbtn', type: 'button', onclick: () => openDataset(x.ds.id) }, x.ds.title)),
+    h('td', null, h('span', { class: 'pill' + (x.ds.split === 'holdout' ? ' holdout' : '') }, x.ds.split === 'holdout' ? 'Holdout' : 'Development')),
+    h('td', null, recordingStatus(x.result)),
+    h('td', null, x.fired.length ? `${x.fired.filter((a) => a.label === 'attack').length} attack, ${x.fired.filter((a) => a.label !== 'attack').length} side effect` : 'No alert')));
+
+  const detail = h('article', { class: 'detail' },
+    h('div', null,
+      h('h2', null, `${r.id}  ${r.title}`),
+      h('div', { class: 'meta-line' }, sev(r.severity), h('span', null, `${r.tactic}, ${r.technique} ${r.technique_name}`),
+        h('span', { class: 'pill' }, r.status), h('span', null, TYPE_TEXT[r.type] || r.type))),
+    h('p', { style: 'max-width:62em' }, r.description),
+    glance,
+    section('How it performed on the made-up logs', h('p', { class: 'cap', style: 'margin-bottom:8px' }, 'Measured on the planted attacks in this run. “No tuning” ignores the exclusions below.'),
+      h('div', { class: 'panel' }, perf)),
+    d.replay ? section('On real recordings',
+      recs.length
+        ? [h('p', { class: 'cap', style: 'margin-bottom:8px' }, 'Where this rule was expected to fire, or did fire, among the public recordings. Select a recording for its alerts.'),
+           h('div', { class: 'panel' }, table(['Recording', 'Set', 'Result', 'Alerts'], recRows, { caption: 'Recordings where this rule was expected or fired' }))]
+        : h('p', { class: 'muted' }, 'None of the recordings contains a technique this rule was written for, and it raised no alert on any of them.')) : null,
+    section('Tests', h('p', { class: 'cap', style: 'margin-bottom:8px' },
+      r.tests.length ? `${passed === r.tests.length ? `All ${r.tests.length} pass.` : `${r.tests.length - passed} fail.`} Each test feeds a few made-up log events to this rule alone and checks that it fires or stays quiet.` : 'This rule has no tests.'),
+      r.tests.length ? h('div', { class: 'panel' }, table(['Test', 'Should', 'Result'], testRows, { caption: 'Unit tests', class: 'tests' })) : null),
+    section('What this rule ignores on purpose',
+      r.exclusions.length
+        ? r.exclusions.map((ex, i) => {
+            const proof = proofOf(i);
+            return h('div', { class: 'excl' },
+              h('div', null, 'Ignores alerts where ', Object.entries(ex.match).map(([k, v], j) => [j ? ' and ' : '', h('code', null, `${k} = ${showValue(v)}`)])),
+              h('div', { class: 'muted' }, ex.reason),
+              proof ? h('div', { style: 'margin-top:4px' }, proof.exercised ? status('ok', 'A test fails if this exclusion is removed') : status('bad', 'No test depends on this exclusion')) : null);
+          })
+        : h('p', { class: 'muted' }, 'No exclusions. Every match raises an alert.')),
+    r.false_positives ? section('Known false alarms', h('p', { style: 'max-width:62em' }, r.false_positives)) : null,
+    section('Questions to ask', steps(r.triage, false)),
+    section('What to do', steps(r.response, true)),
+    exportSection(r),
+    h('div', null, h('a', { class: 'btn primary', href: `#/playground/${r.id}` }, icon('play', 14), SNAP ? 'Read the rule file' : 'Edit and test this rule')));
+
+  mount(h('div', { class: 'stack' },
+    h('section', { class: 'lead' }, h('h1', { style: 'font-size:28px' }, 'Rules'),
+      h('p', { class: 'sub' }, `${d.rules.length} detection rules, each a small text file. Every rule lists its tests, what it ignores and why, and how it did on the made-up logs and the real recordings.`)),
+    h('div', { class: 'md' }, h('div', { class: 'side' }, h('div', { class: 'side-tools' }, search, count), listBox), detail)));
+}
+
+/* =====================================================================
+   Cases
+   ===================================================================== */
+function riskBlock(risk, method, nCases, rank) {
+  const max = Math.max(1, ...risk.factors.map((f) => f.points));
+  const sorted = risk.factors.map((f, i) => ({ ...f, i })).sort((a, b) => (b.points - a.points) || (a.i - b.i));
+  const li = (f) => h('li', null,
+    h('span', null, f.label), h('span', { class: 'fac-p' }, `+${f.points}`),
+    h('span', { class: 'fac-bar', 'aria-hidden': 'true' }, h('i', { style: `width:${Math.round((f.points / max) * 100)}%` })));
+  const fold = sorted.length > 8;
+  const top = fold ? sorted.slice(0, 6) : sorted, rest = fold ? sorted.slice(6) : [];
+  const sp = method.severity_points, lv = method.levels.slice().sort((a, b) => b[0] - a[0]);
+  const levelText = lv.filter(([floor]) => floor > 0).map(([floor, name]) => `${name} from ${floor}`).join(', ') + `, otherwise ${lv[lv.length - 1][1]}`;
+  return h('div', null,
+    h('ul', { class: 'fac' }, top.map(li)),
+    rest.length ? h('details', { class: 'fold' },
+      h('summary', null, `${plural(rest.length, 'smaller reason')} (+${rest.reduce((n, f) => n + f.points, 0)} points)`),
+      h('ul', { class: 'fac' }, rest.map(li))) : null,
+    h('p', { class: 'fac-total' }, `Total ${risk.score} points: ${risk.level}. Rank ${rank} of ${nCases} cases.`),
+    h('p', { class: 'cap', style: 'max-width:62em;margin-top:6px' },
+      `Each distinct rule adds ${sp.low} (low), ${sp.medium} (medium), ${sp.high} (high) or ${sp.critical} (critical) points. ` +
+      `Each extra ATT&CK tactic adds ${method.breadth_points}. A critical host (name starts with ${method.critical_hosts.join(', ')}) adds ${method.asset_points}. ` +
+      `A privileged account (starts with ${method.privileged_accounts.join(', ')}) adds ${method.account_points}. Levels: ${levelText}. ` +
+      'This is a sum chosen by hand, not a trained model. The name prefixes stand in for a real asset inventory, and the score was checked only on these made-up cases.'));
+}
+async function viewCases(arg) {
+  const d = state.data, rk = d.ranking, method = d.risk_method;
+  const sorted = [...d.cases].sort((a, b) => a.rank - b.rank);
+  const c = d.cases.find((x) => x.id === arg) || sorted[0];
+  const list = h('nav', { class: 'list scroll', 'aria-label': 'Cases, highest risk first' }, sorted.map((x) => h('a', { class: 'item', href: `#/cases/${x.id}`, 'aria-current': x.id === c.id ? 'true' : null },
+    h('div', { class: 'item-top' }, h('span', { class: 'item-id' }, `${x.rank}. ${x.title}`), sev(x.risk.level)),
+    h('div', { class: 'item-title' }, `${x.id}, ${plural(x.alert_ids.length, 'alert')}, ${x.risk.score} points`),
+    h('div', { class: 'item-meta' }, x.tactics.join(', ')))));
+  const holder = h('article', { class: 'detail', 'aria-live': 'polite' }, h('p', { class: 'muted' }, 'Loading the case...'));
+  mount(h('div', { class: 'stack' },
+    h('section', { class: 'lead' }, h('h1', { style: 'font-size:28px' }, 'Incident cases'),
+      h('p', { class: 'sub' }, `${plural(d.case_summary.alerts, 'alert')} became ${plural(d.case_summary.cases, 'case')}. Alerts that share an account, a source address, or a host within ${method.window_hours} hours are grouped, so a reader sees one incident instead of many alerts. Cases are listed with the highest risk first. ${rankingLine(rk)}`.trim())),
+    h('div', { class: 'md' }, h('div', { class: 'side' }, list), holder)));
+  try {
+    if (!state.caseCache[c.id]) state.caseCache[c.id] = await getJson('/api/case?id=' + encodeURIComponent(c.id));
+    if (!holder.isConnected) return;
+    const k = state.caseCache[c.id];
+    const ribbon = h('div', { class: 'ribbon' }, c.tactics.map((t, i) => [i ? icon('chevron', 16) : null, h('span', { class: 'step' }, t)]));
+    const facts = [['Accounts', c.accounts], ['Source addresses', c.ips], ['Hosts', c.hosts]].filter(([, v]) => v.length);
+    fill(holder,
+      h('div', null, h('h2', null, `${c.title}  ${c.id}`),
+        h('div', { class: 'meta-line' }, sev(c.risk.level), h('span', null, `Risk ${c.risk.score}, rank ${c.rank} of ${d.cases.length}`),
+          h('span', null, `${fmtIso(c.first_ts)} to ${c.last_ts.slice(11, 19)} UTC`),
+          c.attacks.length ? h('span', null, `Matches planted attack ${c.attacks.join(', ')}`) : h('span', null, 'Matches no planted attack'),
+          c.multi_stage ? h('span', { class: 'pill' }, 'Multi-stage') : null)),
+      h('div', null, downloadBtn('/api/case-report?id=' + encodeURIComponent(c.id), c.id + '.md', 'Download the case report')),
+      section('Why this risk score', riskBlock(c.risk, method, d.cases.length, c.rank)),
+      section('Stages of the attack', ribbon),
+      facts.length ? h('dl', { class: 'kv' }, facts.map(([t, v]) => [h('dt', null, t), h('dd', null, v.join(', '))])) : null,
+      section('What happened, in order',
+        h('ul', { class: 'timeline' }, k.timeline.map((row) => h('li', { class: row.alerts.length ? 'hit' : '' },
+          h('span', { class: 'when' }, row.ts.slice(11, 19)), h('span', { class: 'rail' }, h('i')),
+          h('div', null, row.text,
+            row.alerts.length ? h('span', { class: 'chips' }, row.alerts.map((id) => h('button', { class: 'chip', type: 'button', onclick: () => openAlert(id), 'aria-label': `Open alert ${id}` }, id))) : null,
+            row.note ? h('span', { class: 'cap tl-note' }, row.note) : null,
+            row.detail ? h('code', null, row.detail) : null)))),
+        h('p', { class: 'cap' }, 'Times are UTC. A highlighted dot means an alert fired on that event.')),
+      section('Questions to ask', k.triage.map((g, i) => h('details', { class: 'fold', open: i === 0 }, h('summary', null, `From ${g.rule_id}`), steps(g.steps, false)))),
+      section('What to do', k.response.map((g, i) => h('details', { class: 'fold', open: i === 0 }, h('summary', null, `From ${g.rule_id}`), steps(g.steps, true)))));
+  } catch (err) {
+    holder.replaceChildren(h('p', { class: 'errors' }, err.message));
+  }
+}
+
+/* =====================================================================
+   Red team
+   ===================================================================== */
+function viewRedTeam() {
+  const rt = state.data.redteam, gaps = rt.total - rt.caught;
+  mount(h('div', { class: 'stack' },
+    h('section', { class: 'lead' },
+      h('h1', null, `The rules catch ${rt.caught} of ${rt.total} evasion attacks.`),
+      h('p', { class: 'sub' }, gaps ? `${plural(gaps, 'gap')} stay open. Each one lists what would close it.` : 'No gaps remain in this run.'),
+      h('p', { class: 'note' }, 'These attacks were written after the rules, to slip past them, so they test blind spots the author already knew about. Someone else would find other gaps.')),
+    h('section', { class: 'panel' }, h('div', { class: 'panel-body' },
+      h('ul', { class: 'rt' }, rt.rows.map((r) => h('li', null,
+        h('div', null, h('div', { class: 'rt-name' }, `${r.id}  ${r.name}`), h('p', { class: 'rt-desc' }, r.description)),
+        h('div', null, r.caught ? status('ok', 'Caught') : status('bad', 'Missed'),
+          h('div', { class: 'rt-by' }, r.caught ? `by ${r.detected_by.join(', ')}` : `${r.expected.join(', ')} should have fired`)),
+        h('div', null, h('div', { class: 'rt-fixlabel' }, r.caught ? 'How the gap was closed' : 'What would close it'), h('p', { class: 'rt-fix' }, r.mitigation)))))))));
+}
+
+/* =====================================================================
+   Playground
+   ===================================================================== */
+function judge(kind, a, b) {
+  if (a === b) return { tone: 'same', text: 'No change' };
+  if (a == null || b == null || !kind) return { tone: 'same', text: 'Changed' };
+  const better = kind === 'low' ? b < a : b > a;
+  return better ? { tone: 'ok', text: 'Better' } : { tone: 'warn', text: 'Worse' };
+}
+function viewRuleFile(arg) {
+  const d = state.data, r = d.rules.find((x) => x.id === arg) || d.rules[0];
+  const sel = h('select', { id: 'rulepick', 'aria-label': 'Rule to read', onchange: (e) => { location.hash = `#/playground/${e.target.value}`; } },
+    d.rules.map((x) => h('option', { value: x.id, selected: x.id === r.id }, `${x.id} ${shortTitle(x.title)}`)));
+  mount(h('div', { class: 'stack' },
+    h('section', { class: 'lead' }, h('h1', { style: 'font-size:28px' }, 'Rule files'),
+      h('p', { class: 'sub' }, 'Every rule is one text file. This is the file of the rule you pick, exactly as it is in the project.')),
+    h('div', { class: 'callout' }, 'This is the read-only copy, so testing is switched off. On your own computer the lab has a playground: you change a number in a rule, press Test, and see what happens to the alerts, the cases and the red-team results. The steps are on the About page.'),
+    h('section', null,
+      h('div', { class: 'cov-tools', style: 'margin-bottom:10px' }, h('label', { for: 'rulepick' }, 'Rule'), sel, copyButton(() => r.yaml)),
+      h('pre', { class: 'code-view', tabindex: '0', role: 'region', 'aria-label': `Text of rule ${r.id}` }, r.yaml),
+      h('p', { class: 'cap', style: 'margin-top:8px' }, h('a', { href: `#/rules/${r.id}` }, `Open the full page for ${r.id}`)))));
+}
+function viewPlayground(arg) {
+  if (SNAP) { viewRuleFile(arg); return; }
+  const d = state.data, r = d.rules.find((x) => x.id === arg) || d.rules[0];
+  const key = `${r.id}`;
+  if (state.drafts[key] == null) state.drafts[key] = r.yaml;
+  const ta = h('textarea', { class: 'code', id: 'editor', spellcheck: 'false', autocapitalize: 'off', autocomplete: 'off', wrap: 'off', 'aria-label': `Text of rule ${r.id}` });
+  ta.value = state.drafts[key];
+  ta.addEventListener('input', () => { state.drafts[key] = ta.value; });
+  const placeholder = () => h('p', { class: 'muted' }, 'Press “Test this change” to see the result here.');
+  const out = h('div', { class: 'res', 'aria-live': 'polite' }, placeholder());
+  const note = h('span', { class: 'cap', role: 'status' });
+  const sel = h('select', { id: 'rulepick', 'aria-label': 'Rule to edit', onchange: (e) => { location.hash = `#/playground/${e.target.value}`; } },
+    d.rules.map((x) => h('option', { value: x.id, selected: x.id === r.id }, `${x.id} ${shortTitle(x.title)}`)));
+  const run = h('button', { class: 'btn primary', type: 'button' }, icon('play', 14), 'Test this change');
+  const reset = h('button', { class: 'btn', type: 'button' }, 'Reset to the saved rule');
+  const test = async () => {
+    run.disabled = true; note.textContent = 'Testing...';
+    try {
+      const res = await postJson('/api/test-rule', { rule_id: r.id, yaml: ta.value });
+      state.tests[key] = res; showResult(out, res);
+      note.textContent = res.ok ? 'Done. Nothing was saved.' : '';
+    } catch (err) { out.replaceChildren(h('div', { class: 'errors' }, err.message)); note.textContent = ''; }
+    run.disabled = false;
+  };
+  run.addEventListener('click', test);
+  reset.addEventListener('click', () => { ta.value = r.yaml; state.drafts[key] = r.yaml; delete state.tests[key]; out.replaceChildren(placeholder()); note.textContent = 'Reset.'; });
+  ta.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); test(); } });
+
+  const hints = [];
+  const standard = d.meta.seed === 7 && d.meta.days === 14;
+  if (r.id === 'DET-022' && standard) {
+    hints.push(h('div', { class: 'callout' }, 'Try this. Change ', h('code', null, 'max_cv: 0.15'), ' to ', h('code', null, 'max_cv: 0.35'), ' and press Test. At seed 7 the red-team beacon with heavy timing jitter (EV-07) is caught, and no new false alarm appears.'));
+    hints.push(h('div', { class: 'callout warn' }, 'Be careful with that result. Even a limit of 1.0 adds no false alarm at seed 7, so this lab cannot show what a loose limit costs. A real network has regular background traffic, such as update checks and monitoring agents, and that is what a loose limit lets through. Do not copy the number.'));
+  } else {
+    hints.push(h('div', { class: 'callout' }, 'Try changing a number, such as ', h('code', null, 'threshold'), ' or ', h('code', null, 'window_seconds'), ', then press Test.'));
+    if (standard) hints.push(h('div', { class: 'callout' }, 'For an example that changes a result, open ', h('a', { href: '#/playground/DET-022' }, 'DET-022, the beaconing rule'), '.'));
+  }
+  if (state.tests[key]) showResult(out, state.tests[key]);
+
+  mount(h('div', { class: 'stack' },
+    h('section', { class: 'lead' }, h('h1', { style: 'font-size:28px' }, 'Playground'),
+      h('p', { class: 'sub' }, 'Change a rule and see what it would do to the same logs and the same red-team attacks. Nothing is saved, and your rule files are never changed.')),
+    h('div', { class: 'pg' },
+      h('section', null, h('div', { class: 'field', style: 'margin-bottom:10px' }, h('label', { for: 'rulepick' }, 'Rule'), sel),
+        ta, h('div', { class: 'pg-actions' }, run, reset, note, h('span', { class: 'cap' }, 'Ctrl+Enter also runs the test.')),
+        h('div', { style: 'margin-top:14px' }, hints)),
+      h('section', null, h('h2', { style: 'margin-bottom:10px' }, 'Result'),
+        h('div', { class: 'panel' }, h('div', { class: 'panel-body' }, out))))));
+}
+function showResult(out, res) {
+  if (!res.ok) {
+    out.replaceChildren(h('div', { class: 'errors', role: 'alert' }, h('strong', null, 'This rule was not tested.'), h('ul', { style: 'margin-top:6px' }, res.errors.map((e) => h('li', null, e)))));
+    return;
+  }
+  const b = res.before, a = res.after;
+  const metric = (label, kind, x, y, fmt = (v) => String(v)) => {
+    const j = judge(kind, x, y);
+    return h('tr', null, h('th', { scope: 'row', style: 'font-weight:600' }, label), h('td', { class: 'num' }, fmt(x)), h('td', { class: 'num' }, fmt(y)), h('td', { class: 'delta' }, status(j.tone, j.text)));
+  };
+  const head = ['Measure', { label: 'Before', num: true }, { label: 'After', num: true }, 'Change'];
+  const rule = table(head, [
+    metric('Alerts from this rule', null, b.rule.alerts, a.rule.alerts),
+    metric('False alarms from this rule', 'low', b.rule.fp, a.rule.fp),
+    metric('Attacks this rule found', 'high', b.rule.detected, a.rule.detected, (v) => `${v} of ${b.rule.expected}`)], { caption: 'This rule, before and after' });
+  const whole = table(head, [
+    metric('Total alerts', null, b.overall.alerts, a.overall.alerts),
+    metric('Total false alarms', 'low', b.overall.fp, a.overall.fp),
+    metric('Precision', 'high', b.overall.precision, a.overall.precision, pct),
+    metric('Recall', 'high', b.overall.recall, a.overall.recall, pct),
+    metric('Red-team attacks caught', 'high', b.redteam_caught, a.redteam_caught, (v) => `${v} of ${res.redteam_total}`)], { caption: 'Whole lab, before and after' });
+  const compare = (rows) => h('ul', { class: 'cmp' }, rows.map((r) => {
+    const changed = r.before !== r.after;
+    return h('li', { class: changed ? 'changed' : '' }, h('span', null, `${r.id}  ${r.name}`),
+      h('span', { style: 'display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end' },
+        changed ? h('span', { class: 'was' }, r.before ? 'was caught' : 'was missed') : null,
+        r.after ? status('ok', 'Caught') : status('bad', 'Missed')));
+  }));
+  fill(out,
+    section('This rule', h('div', { class: 'panel' }, rule)),
+    section('Whole lab', h('div', { class: 'panel' }, whole)),
+    section('Planted attacks', compare(res.attacks)),
+    section('Red-team attacks', compare(res.redteam)),
+    res.false_alarms.length ? section('False alarms this rule would raise', h('ul', { class: 'steps' }, res.false_alarms.map((f) => h('li', null, `${fmtIso(f.fired_ts)}  ${f.summary}`)))) : null);
+}
+
+/* =====================================================================
+   Real recordings
+   ===================================================================== */
+function datasetResult(ds) {
+  // One line per expected rule: fired, missed, or could not be tested.
+  return h('div', { class: 'stack-cell' }, ds.expected.map((rid) => {
+    if (ds.hit.includes(rid)) return h('span', null, status('ok', ''), ' ', ruleLink(rid), ' fired');
+    if (ds.no_data.includes(rid)) return h('span', null, status('same', ''), ' ', ruleLink(rid), ' not testable');
+    return h('span', null, status('bad', ''), ' ', ruleLink(rid), ' missed');
+  }));
+}
+function openDataset(id) {
+  const rp = state.data.replay, ds = rp.datasets.find((x) => x.id === id);
+  if (!ds) return;
+  const rows = ds.alerts.map((a) => h('tr', null,
+    h('td', { class: 'nowrap' }, fmtIso(a.first_ts) + ' UTC'),
+    h('td', null, ruleLink(a.rule_id), ' ', h('span', { class: 'muted' }, shortTitle(a.rule_title))),
+    h('td', null, sev(a.severity)),
+    h('td', null, labelChip(a.label)),
+    h('td', null, a.summary)));
+  const noteRules = Object.keys(ds.notes || {});
+  const body = h('div', { class: 'drawer-body' },
+    kvList([
+      ['Set', ds.split === 'holdout' ? 'Holdout. The rules were frozen before this recording was run.' : 'Development. This recording was used while writing the rules.'],
+      ['ATT&CK', ds.attack.length ? ds.attack.map((t, i) => [i ? ', ' : null, extLink(attackUrl(t), t)]) : 'Not stated'],
+      ['Events', nf(ds.events)],
+      ['Expected', ruleLinks(ds.expected)],
+      ['Result', datasetResult(ds)],
+      ['Source file', h('code', null, ds.id + '.zip')]]),
+    ds.why ? section('How the alerts are labeled', h('p', { style: 'max-width:62em' }, ds.why)) : null,
+    noteRules.length ? section('About the result', noteRules.map((rid) => h('div', { class: 'callout warn' }, h('strong', null, rid + ': '), ds.notes[rid]))) : null,
+    section(`Alerts the rules raised (${ds.alerts.length})`,
+      ds.alerts.length
+        ? h('div', { class: 'panel' }, table(['Time', 'Rule', 'Severity', 'Label', 'Summary'], rows, { caption: 'Alerts on this recording' }))
+        : h('p', { class: 'muted' }, 'No rule fired on this recording.')));
+  openDrawer(ds.title, body);
+}
+function realTable(rp) {
+  const f = state.realSplit;
+  const list = rp.datasets.filter((ds) => f === 'all' || ds.split === f);
+  const rows = list.map((ds) => h('tr', { class: 'click', onclick: (e) => { if (!e.target.closest('a, button')) openDataset(ds.id); } },
+    h('td', null, h('button', { class: 'idbtn', type: 'button', onclick: () => openDataset(ds.id) }, ds.title)),
+    h('td', null, h('span', { class: 'pill' + (ds.split === 'holdout' ? ' holdout' : '') }, ds.split === 'holdout' ? 'Holdout' : 'Development')),
+    h('td', null, datasetResult(ds)),
+    h('td', { class: 'num' }, ds.alerts.length),
+    h('td', null, ds.alerts.length ? `${ds.labels.attack} attack, ${ds.labels.other} side effect` : 'None')));
+  return h('div', null,
+    h('div', { class: 'filters' },
+      seg('Set', [['all', 'All recordings'], ['dev', 'Development'], ['holdout', 'Holdout']], f, (v) => { state.realSplit = v; render(); }),
+      h('span', { class: 'count' }, `Showing ${list.length} of ${rp.datasets.length}`)),
+    h('div', { class: 'panel' }, table(['Recording', 'Set', 'Expected rule', { label: 'Alerts', num: true }, 'What the alerts were'], rows, { caption: 'Recordings and results' }),
+      h('p', { class: 'cap scrollhint' }, 'Scroll sideways to see every column.')));
+}
+function viewReal() {
+  const rp = state.data.replay;
+  if (!rp) {
+    mount(h('div', { class: 'stack' }, h('section', { class: 'lead' }, h('h1', null, 'Real attack recordings'),
+      h('p', { class: 'sub' }, 'This copy of the lab has no replay folder, so there is nothing to show here. The replay folder holds 26 public recordings of attack tools and a list of what each rule should catch in them.'))));
+    return;
+  }
+  const hs = rp.by_split.holdout, dv = rp.by_split.dev, fr = rp.first_run, src = rp.source;
+  const frs = fr ? fr.summary : null;
+  const nchanged = fr && fr.changes ? fr.changes.changed.length : 0;
+
+  const lead = h('section', { class: 'lead' },
+    h('h1', null, 'Tested on real attack recordings, with a holdout run once.'),
+    h('p', { class: 'sub' },
+      `${rp.summary.datasets} public recordings of attack tools were split into two sets before anything was run. ${dv.datasets} of them (development) were used while writing and tuning rules. ` +
+      `Then the rules were frozen and the other ${hs.datasets} (holdout) were run one time. ` +
+      (fr ? `That first run found ${frs.expectations_hit} of ${frs.expectations} expected detections. ` +
+        (nchanged ? `Afterwards, ${plural(nchanged, 'rule')} ${nchanged === 1 ? 'was' : 'were'} changed, so the result now is ${hs.expectations_hit} of ${hs.expectations}. Both numbers stay on record.`
+          : `No rule has changed since, so the result now is the same.`) : '')),
+    h('p', { class: 'note' }, 'The recordings come from a public research project (OTRF Security-Datasets). Each one is a few minutes of one attack on a few lab machines. They show whether a rule sees a technique. They say very little about false alarms on a busy network.'));
+
+  const tile = (label, big, text) => h('li', null, h('span', { class: 'fl' }, label), h('span', { class: 'big' }, big), h('p', null, text));
+  const tiles = [];
+  if (fr) tiles.push(tile('Holdout, first run', `${frs.expectations_hit} of ${frs.expectations}`, 'expected detections fired, before any rule was changed. Stored in replay/holdout-first-run.json with a checksum of every rule.'));
+  tiles.push(tile(fr ? 'Holdout, now' : 'Holdout', `${hs.expectations_hit} of ${hs.expectations}`,
+    fr && fr.changes && fr.changes.changed.length ? `after ${plural(fr.changes.changed.length, 'documented fix', 'documented fixes')} (${fr.changes.changed.join(', ')}).` : 'expected detections fired.'));
+  tiles.push(tile('Development set', `${dv.expectations_hit} of ${dv.expectations}`,
+    `${dv.expectations_no_data ? `plus ${dv.expectations_no_data} not testable. ` : ''}The rules were tuned on these, so treat this as a sanity check, not a test.`));
+  const share = hs.attack_share;
+  tiles.push(tile('Holdout alerts that point at the attack', share == null ? 'n/a' : pct(share),
+    `of ${hs.alerts} alerts include an event of the recorded attack. The rest are side effects, such as logs cleared before the test.${fr && fr.labeled.attack_share != null ? ` First run: ${pct(fr.labeled.attack_share)}.` : ''}`));
+
+  const protocol = h('section', { class: 'sec' },
+    h('h2', null, 'How the test was run'),
+    h('ol', { class: 'steps', style: 'margin-top:8px' }, [
+      `${rp.summary.datasets} recordings were taken from OTRF Security-Datasets at one fixed version. Each file has a checksum, and the lab refuses to run if one does not match.`,
+      'They were split before anything was run. The first byte of the SHA-256 of the file name decides: odd goes to holdout, even to development. Nobody picked which.',
+      'For each recording, the rules that should fire were written down from the name of the technique. These expectations are never edited afterwards.',
+      `Rules were tuned against the ${dv.datasets} development recordings only.`,
+      `The rules were frozen and the ${hs.datasets} holdout recordings were run once. The result is stored together with a checksum of every rule.`,
+      'Only after that were the holdout alerts labeled, and the rules listed below were changed.'].map((t) => h('li', null, t))));
+
+  const source = h('section', { class: 'sec' },
+    h('h2', null, 'Where the recordings come from'),
+    h('div', { style: 'margin-top:10px' }, kvList([
+      ['Project', extLink(src.url, src.name)],
+      ['Version', h('code', null, src.commit)],
+      ['License', src.license],
+      src.note ? ['Note', src.note] : null,
+      ['Files', src.files_are_unmodified ? 'Unmodified, checked by SHA-256 on every run.' : 'Modified.']])));
+
+  const sections = [lead, h('ul', { class: tiles.length === 4 ? 'tiles four' : 'tiles', 'aria-label': 'Summary' }, tiles), h('div', { class: 'two' }, protocol, source)];
+
+  if (fr) {
+    const lab = fr.labeled.labels, now = hs.labels;
+    const row = (name, a, b) => h('tr', null, h('th', { scope: 'row', style: 'font-weight:600' }, name), h('td', { class: 'num' }, a), h('td', { class: 'num' }, b));
+    const cmp = table(['Holdout measure', { label: 'First run', num: true }, { label: 'Now', num: true }], [
+      row('Expected detections that fired', `${frs.expectations_hit} of ${frs.expectations}`, `${hs.expectations_hit} of ${hs.expectations}`),
+      row('Recordings fully hit', `${frs.datasets_fully_hit} of ${frs.datasets}`, `${hs.datasets_fully_hit} of ${hs.datasets}`),
+      row('Alerts raised', String(frs.alerts), String(hs.alerts)),
+      row('Alerts with an attack event', `${lab.attack} (${pct(fr.labeled.attack_share)})`, `${now.attack} (${pct(hs.attack_share)})`),
+      row('Alerts on side effects', String(lab.other), String(now.other))], { caption: 'Holdout, first run and now' });
+    const changed = fr.changes ? fr.changes.changed : [];
+    sections.push(h('section', { class: 'sec' },
+      h('h2', null, 'First run, and what changed afterwards'),
+      h('p', { class: 'cap' }, `The first run was stored on ${fr.ran_at.slice(0, 10)}. Changing a rule afterwards makes the result look better than a blind test, so both are shown.`),
+      h('div', { class: 'two', style: 'margin-top:14px' },
+        h('div', { class: 'panel' }, cmp),
+        h('div', null,
+          h('h3', { style: 'margin-bottom:6px' }, changed.length ? `${plural(changed.length, 'rule')} changed after the first run` : 'No rule has changed since the first run'),
+          changed.map((rid) => h('div', { class: 'excl' }, h('div', null, h('strong', null, ruleLink(rid))), h('div', { class: 'muted' }, (fr.change_notes || {})[rid] || 'No note was written for this change.'))),
+          (fr.addenda || []).map((a) => h('details', { class: 'fold', style: 'margin-top:10px' },
+            h('summary', null, `Technical note, added ${a.added}`), h('p', { class: 'fine' }, a.what)))))));
+  }
+
+  sections.push(h('section', { class: 'sec' },
+    h('h2', null, `All ${rp.summary.datasets} recordings`),
+    h('p', { class: 'cap', style: 'margin-bottom:12px' }, 'Select a recording to see its alerts and how each one was labeled.'),
+    realTable(rp)));
+
+  const unresolved = rp.datasets.filter((ds) => ds.missed.length || ds.no_data.length);
+  if (unresolved.length) {
+    sections.push(h('section', { class: 'sec' },
+      h('h2', null, 'Misses and tests that could not run'),
+      h('p', { class: 'cap', style: 'margin-bottom:12px' }, 'A rule was not changed to turn a miss into a hit unless the recording showed a general gap in the rule.'),
+      unresolved.map((ds) => [...ds.missed.map((rid) => [rid, 'missed']), ...ds.no_data.map((rid) => [rid, 'no_data'])].map(([rid, kind]) =>
+        h('div', { class: 'excl' },
+          h('div', null, kind === 'missed' ? status('bad', '') : status('same', ''), h('strong', null, ds.title), '  ', ruleLink(rid),
+            ' ', h('span', { class: 'pill' + (ds.split === 'holdout' ? ' holdout' : '') }, ds.split === 'holdout' ? 'Holdout' : 'Development')),
+          h('div', { class: 'muted' }, (ds.notes || {})[rid] || (kind === 'missed' ? 'Missed.' : 'Not testable with this recording.')))))));
+  }
+
+  sections.push(h('section', { class: 'sec' },
+    h('h2', null, 'What this does not show'),
+    h('ul', { class: 'steps', style: 'margin-top:8px' }, [
+      'Short attack runs in a lab are not a busy network. A rule that fires here may still be noisy in real traffic, and this test cannot tell.',
+      'The expectations and the labels are one reviewer’s judgment. What should fire was written from the technique name, and the same author decided which alerts point at the attack. Another analyst might label some alerts differently. The labeling rules are in replay/labels.yml.',
+      'Before the split, the field names and event types of all 26 recordings were looked at, so that they could be translated into the lab’s event format. How the rules behaved on the holdout recordings was not looked at, but this is not a perfectly blind test.',
+      'The times in the recordings are the times they were loaded, not when the attacks ran, so time to detect is not measured on real data.',
+      'Two rules changed after the holdout result was known. The first run is the blind number. The current number is better because of those fixes.',
+      'A rule can fire for a reason other than the planned attack. The labels check whether at least one event of an alert belongs to the recorded attack, which is why side effects are counted separately.'].map((t) => h('li', null, t)))));
+
+  mount(h('div', { class: 'stack' }, ...sections));
+}
+
+/* =====================================================================
+   ATT&CK coverage
+   ===================================================================== */
+function coverageIndex(cov) {
+  // Every technique that appears in the map (parents and their sub-techniques), by id.
+  const byId = {};
+  for (const col of cov.columns) for (const cell of col.cells) {
+    byId[cell.id] = byId[cell.id] || { id: cell.id, name: cell.name, level: cell.level, rules: cell.rules, parent: null };
+    for (const sub of cell.subs) byId[sub.id] = byId[sub.id] || { id: sub.id, name: sub.name, level: sub.level, rules: sub.rules, parent: cell.id };
+  }
+  return byId;
+}
+function findCell(cov, id) {
+  for (const col of cov.columns) for (const cell of col.cells) if (cell.id === id) return cell;
+  return null;
+}
+function openTechnique(id) {
+  const cov = state.data.coverage, cell = findCell(cov, id);
+  if (!cell) return;
+  const link = attackUrl(cell.id);
+  const group = state.covGroup ? cov.groups.find((g) => g.id === state.covGroup) : null;
+  const groupHit = group ? Object.keys(group.techniques).filter((t) => t === cell.id || t.startsWith(cell.id + '.')) : [];
+  const subRows = cell.subs.map((sub) => h('tr', null,
+    h('td', { class: 'nowrap' }, extLink(attackUrl(sub.id), sub.id)),
+    h('td', null, sub.name),
+    h('td', null, levelChip(sub.level)),
+    h('td', null, sub.rules.length ? ruleLinks(sub.rules) : '')));
+  const body = h('div', { class: 'drawer-body' },
+    kvList([
+      ['Evidence', levelChip(cell.best)],
+      ['Rules on the technique', cell.rules.length ? ruleLinks(cell.rules) : 'None. Only a sub-technique has a rule, or nothing does.'],
+      ['Sub-techniques', cell.subs_total ? `${cell.subs_mapped} of ${cell.subs_total} have a rule` : 'This technique has no sub-techniques.'],
+      group ? [`Used by ${group.name}`, groupHit.length ? groupHit.join(', ') : 'Not listed for this group.'] : null,
+      link ? ['On attack.mitre.org', extLink(link, cell.id)] : null]),
+    cell.subs.length ? section('Sub-techniques', h('div', { class: 'panel' }, table(['ID', 'Name', 'Evidence', 'Rules'], subRows, { caption: 'Sub-techniques' }))) : null,
+    h('p', { class: 'cap' }, 'Levels 2 and 3 count only a rule’s main technique. A rule that fires once does not prove it catches every way of using that technique.'));
+  openDrawer(`${cell.id} ${cell.name}`, body);
+}
+function tileButton(cell, usedParents) {
+  const via = cell.level === 0 && cell.best > 0;
+  const text = `${cell.id} ${cell.name}`;
+  const lines = [text, LEVEL_TEXT[cell.best] + (via ? ' (through a sub-technique)' : ''),
+    cell.rules.length ? 'Rules: ' + cell.rules.join(', ') : cell.best ? 'A sub-technique has a rule' : '~No rule yet'];
+  const used = usedParents.has(cell.id);
+  const b = h('button', { type: 'button', class: `tile lv${cell.best}` + (used ? ' used' : ''),
+    'aria-label': `${text}. ${LEVEL_TEXT[cell.best]}${via ? ', through a sub-technique' : ''}.${cell.rules.length ? ' Rules ' + cell.rules.join(', ') + '.' : ''}${used ? ' Used by the chosen group.' : ''}`,
+    onclick: () => { hideTip(); openTechnique(cell.id); } }, cell.best ? String(cell.best) : '');
+  b.addEventListener('pointerenter', () => showTip(b, lines)); b.addEventListener('pointerleave', hideTip);
+  b.addEventListener('focus', () => showTip(b, lines)); b.addEventListener('blur', hideTip);
+  return b;
+}
+function groupPanel(cov, index, group) {
+  const ids = Object.keys(group.techniques);
+  const gaps = ids.filter((t) => group.techniques[t] === 0).sort();
+  const covered = ids.filter((t) => group.techniques[t] > 0).sort();
+  const nameOf = (t) => (index[t] ? index[t].name : '');
+  const aliases = group.aliases.length ? ` (also ${group.aliases.slice(0, 4).join(', ')})` : '';
+  const item = (t) => h('li', null, extLink(attackUrl(t), t), ' ', nameOf(t));
+  return h('div', { class: 'stack', style: 'margin-top:14px' },
+    h('div', { class: 'callout' }, h('strong', null, group.name), aliases,
+      ` uses ${plural(group.total, 'technique')} and sub-techniques in ATT&CK. ${group.mapped} ${group.mapped === 1 ? 'has' : 'have'} a rule (${pct(group.share)}) and ${group.total - group.mapped} do not. ` +
+      'A technique counts as covered only when a rule lists that exact ID. The outlined tiles in the map are the techniques this group uses.'),
+    h('div', { class: 'two' },
+      h('details', { class: 'fold', open: true }, h('summary', null, `No rule yet (${gaps.length})`),
+        gaps.length ? h('ul', { class: 'steps' }, gaps.slice(0, 40).map(item)) : h('p', { class: 'muted' }, 'Every technique of this group has a rule.'),
+        gaps.length > 40 ? h('p', { class: 'cap' }, `And ${gaps.length - 40} more.`) : null),
+      h('details', { class: 'fold', open: true }, h('summary', null, `Has a rule (${covered.length})`),
+        covered.length ? h('ul', { class: 'steps' }, covered.map(item)) : h('p', { class: 'muted' }, 'None of this group’s techniques has a rule.'))));
+}
+function viewCoverage() {
+  const d = state.data, cov = d.coverage, sm = cov.summary, index = coverageIndex(cov);
+  const share = Math.round((sm.parents_with_any / sm.parents) * 100);
+  const sortedGroups = [...cov.groups].sort((a, b) => a.name.localeCompare(b.name));
+
+  const lead = h('section', { class: 'lead' },
+    h('h1', null, `${sm.parents_with_any} of ${sm.parents} ATT&CK techniques have a rule.`),
+    h('p', { class: 'sub' },
+      `That is ${share}%. The other ${sm.parents - sm.parents_with_any} are shown on purpose. A technique counts when a rule maps to it or to one of its sub-techniques, using ATT&CK v${cov.attack.version} (${cov.attack.modified}).`),
+    h('p', { class: 'note' }, 'Coverage is a map of where to look, not a score for how safe a network is. A rule that fires on a technique does not catch every way of using it.'));
+
+  const key = h('div', { class: 'cov-key', role: 'list', 'aria-label': 'What the colors mean' },
+    [0, 1, 2, 3].map((lvl) => h('span', { role: 'listitem' }, levelSwatch(lvl, 22),
+      lvl === 0 ? 'No rule' : lvl === 1 ? '1  Mapped: a rule lists it' : lvl === 2 ? '2  A rule caught a planted attack in the lab' : '3  A rule fired on a real recording')));
+
+  const mapBox = h('div'), groupBox = h('div');
+  const drawMap = () => {
+    const group = state.covGroup ? cov.groups.find((g) => g.id === state.covGroup) : null;
+    const used = new Set(group ? Object.keys(group.techniques).map((t) => t.split('.')[0]) : []);
+    fill(mapBox, h('div', { class: 'cov-map' }, cov.columns.map((col) => {
+      const cells = [...col.cells].sort((a, b) => (b.best - a.best) || a.name.localeCompare(b.name));
+      return h('section', { class: 'tactic', 'aria-label': col.name },
+        h('h3', null, col.name),
+        h('p', { class: 'cap' }, `${col.mapped} of ${col.cells.length} techniques have a rule`),
+        h('div', { class: 'tile-row' }, cells.map((c) => tileButton(c, used))));
+    })));
+    fill(groupBox, group ? groupPanel(cov, index, group) : null);
+  };
+  const select = h('select', { id: 'grp', 'aria-label': 'Threat group', onchange: (e) => { state.covGroup = e.target.value; drawMap(); } },
+    h('option', { value: '' }, 'No group chosen'),
+    sortedGroups.map((g) => h('option', { value: g.id, selected: state.covGroup === g.id }, g.name)));
+  drawMap();
+
+  const mapped = Object.values(index).filter((t) => t.level > 0).sort((a, b) => (b.level - a.level) || a.id.localeCompare(b.id));
+  const rows = mapped.map((t) => h('tr', null,
+    h('td', { class: 'nowrap' }, h('button', { class: 'idbtn', type: 'button', onclick: () => openTechnique(t.parent || t.id) }, t.id)),
+    h('td', null, t.name),
+    h('td', null, levelChip(t.level)),
+    h('td', null, ruleLinks(t.rules))));
+
+  const by = sm.by_level;
+  mount(h('div', { class: 'stack' }, lead,
+    h('section', { class: 'sec' },
+      h('h2', null, 'The map'),
+      h('p', { class: 'cap', style: 'margin:2px 0 12px' }, 'One tile per technique, grouped by tactic. A technique that belongs to several tactics appears under each of them. Select a tile for details. The same data is in the table below the map.'),
+      key,
+      h('div', { class: 'cov-tools', style: 'margin:16px 0 4px' },
+        h('label', { for: 'grp' }, 'Compare with a threat group'), select),
+      groupBox,
+      h('div', { style: 'margin-top:20px' }, mapBox)),
+    h('section', { class: 'sec' },
+      h('h2', null, `Techniques with a rule (${mapped.length})`),
+      h('p', { class: 'cap', style: 'margin:2px 0 12px' },
+        `${by[3] || 0} seen in a real recording, ${by[2] || 0} exercised in the lab, ${by[1] || 0} only mapped. Levels 2 and 3 count only a rule’s main technique, not the extra techniques it lists under “also”.`),
+      h('div', { class: 'panel' }, table(['ID', 'Name', 'Evidence', 'Rules'], rows, { caption: 'Techniques with a rule' }))),
+    h('section', { class: 'sec' },
+      cov.problems.length
+        ? h('div', { class: 'errors' }, h('strong', null, 'Some rules name a technique that is not in the current ATT&CK data:'), h('ul', null, cov.problems.map((p) => h('li', null, p))))
+        : h('p', { class: 'callout' }, `Every technique ID used by the ${sm.rules} rules exists in ATT&CK v${cov.attack.version}. In that release, ATT&CK retired the “Defense Evasion” tactic and split it into “Stealth” and “Defense Impairment”, and renumbered many techniques. The rules use the new names.`),
+      h('p', { class: 'fine', style: 'margin-top:12px' }, 'ATT&CK® is a registered trademark of The MITRE Corporation. ' + cov.attack.notice))));
+}
+
+/* =====================================================================
+   About
+   ===================================================================== */
+function viewAbout() {
+  const d = state.data, rp = d.replay, ts = d.tests_summary, ss = d.sigma_summary, cov = d.coverage, rt = d.redteam;
+  const q = ss.queries || { splunk: { ok: 0 }, kql: { ok: 0 } };
+  const row = (a, b, c) => h('tr', null, h('th', { scope: 'row' }, a), h('td', null, b), h('td', null, c));
+  const checks = table(['Check', 'What it shows', 'What it does not show'], [
+    row('Made-up logs with planted attacks', `The rules fire on ${plural(d.attacks.length, 'planted attack')}, tuning removes false alarms, and the numbers can be repeated: the same seed always gives the same logs.`,
+      'The same author wrote the attacks and the rules, so a high score is partly circular. It does not say how the rules do on a real network.'),
+    row('Public recordings of real attack tools', rp ? `The rules see attack techniques in logs the author did not make. The ${rp.by_split.holdout.datasets} holdout recordings were run once, after the rules were frozen.` : 'Not included in this copy.',
+      'Short runs in a lab with little normal activity around them. They say little about false alarms. The expectations and labels are one reviewer’s judgment.'),
+    row('Red-team evasion attacks', `Where the rules are blind and what would close each gap. ${rt.caught} of ${rt.total} are caught.`,
+      'These were written after the rules, so they test blind spots the author already knew about. Someone else would find others.')], { caption: 'Three checks' });
+
+  const limits = [
+    'Nothing here ran on a real company’s network. This is a lab, and it is described as one.',
+    `ATT&CK coverage is a map of where to look. ${cov.summary.parents_with_any} of ${cov.summary.parents} techniques have a rule, and having a rule does not mean every way of using the technique is caught.`,
+    `pySigma converted ${q.splunk.ok} rules to Splunk and ${q.kql.ok} to Sentinel${q.splunk.failed + q.kql.failed ? `; ${plural(q.splunk.failed + q.kql.failed, 'conversion')} failed and ${q.splunk.failed + q.kql.failed === 1 ? 'is' : 'are'} marked on the rule pages` : ''}. None of the queries has been run on a live SIEM, and field names depend on how logs are mapped.`,
+    'The case risk score is a sum chosen by hand, checked only on made-up cases. Host and account name prefixes stand in for a real asset inventory.',
+    'The numbers on these pages are produced by running the code, not typed in. Change a rule or the seed and they change with it.',
+    'This project was built with the help of an AI assistant (Claude, by Anthropic). The checks above exist so that its claims do not rest on trust: run them.'];
+
+  mount(h('div', { class: 'stack' },
+    h('section', { class: 'lead' },
+      h('h1', null, 'How this lab was built and measured.'),
+      h('p', { class: 'sub' }, 'Detection Lab is a project about detection engineering: writing rules as code, proving that they work, tuning them with written reasons, and handing analysts cases they can act on. It runs on one computer with Python and nothing else to install.')),
+    h('div', { class: 'prose' },
+      h('h2', null, 'What is in it'),
+      h('ul', { class: 'steps' }, [
+        `${d.rules.length} detection rules as text files, each with an ATT&CK mapping, triage questions, response steps, unit tests and a written reason for every exclusion.`,
+        `A test runner: ${nf(ts.total)} unit tests, a check that every exclusion is needed by at least one test (${ts.exclusions_proven} of ${ts.exclusions} are), and a mutation check that edits each rule in small ways and looks for a test that fails (${ts.edits_caught} of ${ts.edits} edits are noticed).`,
+        `A generator of made-up logs with ${plural(d.attacks.length, 'planted attack')} and a scorer for precision, recall and time to detect.`,
+        'A case builder that groups alerts sharing an account, address or host, and ranks the cases with a risk score you can read.',
+        rp ? `A replay of ${rp.summary.datasets} public attack recordings through the same rules, with a holdout set that was run once.` : null,
+        `A red-team set of ${rt.total} evasion attacks written to slip past the rules, with the fix or the open gap for each.`,
+        `Sigma export of ${ss.exported} rules, with Splunk and Sentinel queries made from them.`,
+        `An ATT&CK v${cov.attack.version} coverage map built from the rules.`,
+        SNAP ? 'This page: a read-only copy of the lab with every result saved inside it. It makes no network requests. To change a rule or the seed, run the lab on your own computer.'
+          : 'This page, which runs only on your computer.'].filter(Boolean).map((t) => h('li', null, t))),
+
+      h('h2', null, 'Three ways the rules were checked'),
+      checks,
+
+      h('h2', null, 'What the numbers do not show'),
+      h('ul', { class: 'steps' }, limits.map((t) => h('li', null, t))),
+
+      h('h2', null, 'Run it yourself'),
+      h('p', null, 'Install Python 3.11 or newer, download the project, open a terminal in its folder, and run:'),
+      h('pre', { class: 'cmd', tabindex: '0' }, [
+        'python -m detlab app            # this web page, on your own computer',
+        'python -m detlab test-rules     # run every rule’s unit tests',
+        'python -m detlab replay         # replay the real recordings',
+        'python -m detlab coverage       # print the ATT&CK coverage',
+        'python -m detlab export-sigma   # rewrite the sigma/ folder'].join('\n')),
+      h('p', null, (SNAP ? 'Run on your own computer, the web page' : 'The web page') + ' lets you change the seed, edit any rule, and see the effect on alerts, cases and red-team results. Nothing it does is saved unless you change a file yourself.'),
+
+      h('h2', null, 'Credits and licenses'),
+      h('ul', { class: 'steps' }, [
+        rp ? ['The recordings are from ', extLink(rp.source.url, rp.source.name), `, version ${rp.source.commit.slice(0, 7)}. License: ${rp.source.license}`] : null,
+        ['ATT&CK® is a registered trademark of The MITRE Corporation. ', cov.attack.notice],
+        'Sigma is an open rule format. The Sigma and SIEM query conversions were made and checked with pySigma and its Splunk and Kusto backends. They are not part of the lab itself.',
+        'A pure-Python copy of PyYAML (MIT license) is bundled as a fallback, so the lab runs without installing anything.'].filter(Boolean).map((t) => h('li', null, t))))));
+}
+
+/* =====================================================================
+   Router, shell, run controls
+   ===================================================================== */
+const TABS = [['overview', 'Overview'], ['real', 'Real recordings'], ['coverage', 'Coverage'], ['rules', 'Rules'], ['cases', 'Cases'], ['alerts', 'Alerts'],
+  ['redteam', 'Red team'], ['playground', SNAP ? 'Rule files' : 'Playground'], ['about', 'About']];
+function route() {
+  const parts = location.hash.replace(/^#\/?/, '').split('/');
+  const tab = TABS.some(([k]) => k === parts[0]) ? parts[0] : 'overview';
+  return { tab, arg: decodeURIComponent(parts[1] || '') };
+}
+function mount(node) { $('#view').replaceChildren(node); }
+function setStatus(text, isError) { const el = $('#runstatus'); el.textContent = text; el.classList.toggle('err', !!isError); }
+let lastTab = null;
+function render() {
+  if (!state.data) return;
+  const { tab, arg } = route();
+  $('#nav').replaceChildren(...TABS.map(([k, t]) => h('a', { href: `#/${k}`, 'aria-current': k === tab ? 'page' : null }, t)));
+  document.title = `${TABS.find(([k]) => k === tab)[1]} - Detection Lab`;
+  hideTip();
+  const scroll = scrollY;
+  ({ overview: viewOverview, real: viewReal, coverage: viewCoverage, rules: viewRules, alerts: viewAlerts, cases: viewCases,
+     redteam: viewRedTeam, playground: viewPlayground, about: viewAbout })[tab](arg);
+  if (lastTab !== tab) { scrollTo(0, 0); lastTab = tab; } else scrollTo(0, scroll);
+}
+function applyData(data) {
+  state.data = data; state.caseCache = {}; state.tests = {};
+  const m = data.meta;
+  if (SNAP) {
+    setStatus(`Read-only copy. ${nf(m.events)} made-up log events, ${m.users} users, ${m.days} days from ${m.start}, seed ${m.seed}.`);
+    return;
+  }
+  $('#seed').value = m.seed; $('#days').value = m.days; $('#days').min = m.limits.min_days; $('#days').max = m.limits.max_days; $('#seed').max = m.limits.max_seed;
+  setStatus(`${m.events.toLocaleString('en-US')} log events, ${m.users} users, ${m.days} days from ${m.start}. Same seed and days always give the same logs.`);
+}
+$('#runform').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const whole = (t) => (/^\d{1,9}$/.test(t.trim()) ? Number(t.trim()) : NaN);   // empty or non-digits become NaN
+  const seed = whole($('#seed').value), days = whole($('#days').value), lim = state.data ? state.data.meta.limits : { min_days: 14, max_days: 30, max_seed: 1000000 };
+  if (!Number.isInteger(seed) || seed < 0 || seed > lim.max_seed) { setStatus(`The seed must be a whole number from 0 to ${lim.max_seed.toLocaleString('en-US')}.`, true); return; }
+  if (!Number.isInteger(days) || days < lim.min_days || days > lim.max_days) { setStatus(`Days must be a whole number from ${lim.min_days} to ${lim.max_days}.`, true); return; }
+  const btn = $('#runbtn'); btn.disabled = true; $('#view').classList.add('stale'); setStatus('Generating new logs and running every rule...');
+  try { applyData(await postJson('/api/run', { seed, days })); closeDrawer(); render(); }
+  catch (err) { setStatus(err.message, true); }
+  btn.disabled = false; $('#view').classList.remove('stale');
+});
+addEventListener('hashchange', () => { closeDrawer(); render(); });
+if (SNAP) {
+  // No server behind this copy: the controls that need one are replaced by a note and a link.
+  $('#runform').replaceChildren(
+    h('p', { class: 'runstatus', id: 'runstatus', role: 'status', 'aria-live': 'polite' }, 'Loading the lab...'),
+    h('a', { class: 'btn', href: '#/about' }, 'Run it on your computer'));
+}
+
+/* theme: Auto, Light, Dark */
+const THEMES = ['auto', 'light', 'dark'];
+function setTheme(t) {
+  if (t === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.dataset.theme = t;
+  $('#theme').textContent = `Theme: ${cap1(t)}`; $('#theme').dataset.theme = t;
+  try { localStorage.setItem('detlab-theme', t); } catch (e) { /* storage can be blocked */ }
+  if (state.data) render();
+}
+$('#theme').addEventListener('click', () => setTheme(THEMES[(THEMES.indexOf($('#theme').dataset.theme) + 1) % 3]));
+let saved = 'auto'; try { saved = localStorage.getItem('detlab-theme') || 'auto'; } catch (e) { /* ignore */ }
+setTheme(THEMES.includes(saved) ? saved : 'auto');
+
+(async () => {
+  $('#view').append(h('p', { class: 'muted' }, 'Building the lab...'));
+  try { applyData(await getJson('/api/lab')); render(); }
+  catch (err) { $('#view').replaceChildren(h('div', { class: 'errors' }, err.message)); setStatus('The lab did not load.', true); }
+})();
+})();
+</script>
+</body>
+</html>

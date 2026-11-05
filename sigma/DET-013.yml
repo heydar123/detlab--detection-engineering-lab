@@ -1,0 +1,52 @@
+title: 'Scheduled task created with a script, shell, or user-folder action [process_create]'
+id: cd4af70f-34f8-5d34-919e-4bb463895f5b
+name: detlab_det_013_process_create
+status: experimental
+description: 'A scheduled task was created whose action runs PowerShell, a command shell, a script host, a file in a temporary or user folder, or a web address, or one that runs as SYSTEM straight from the command line. Attackers use scheduled tasks to keep their access after a reboot and to run code as a more powerful account. The rule watches both the schtasks command line and the task-creation audit event, so it still works when only one of the two logs is collected.'
+author: 'Detection Lab'
+date: '2026-11-04'
+tags:
+  - attack.persistence
+  - attack.t1053.005
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_1:
+    Image|endswith: '\schtasks.exe'
+    CommandLine|re|i|all:
+      - '/create\b'
+      - '(/ru\s+[\x22\x27]?system|powershell|cmd(\.exe)?[\x22\x27]?\s+/[ck]|wscript|cscript|mshta|regsvr32|rundll32|\\(appdata|temp|programdata)\\|\\users\\public\\|https?://)'
+  selection_2:
+    OriginalFileName: schtasks.exe
+    CommandLine|re|i|all:
+      - '/create\b'
+      - '(/ru\s+[\x22\x27]?system|powershell|cmd(\.exe)?[\x22\x27]?\s+/[ck]|wscript|cscript|mshta|regsvr32|rundll32|\\(appdata|temp|programdata)\\|\\users\\public\\|https?://)'
+  condition: 'selection_1 or selection_2'
+falsepositives:
+  - 'Software updaters and installers that register their own tasks; administrators scripting maintenance jobs.'
+  - 'Known benign source at the lab site, not part of this export: The browser updater creates its own scheduled tasks under this service account. Pinned to the account and the task name prefix.'
+level: high
+---
+title: 'Scheduled task created with a script, shell, or user-folder action [scheduled_task_create]'
+id: '3b2f75a0-e1e2-528b-97f9-fd6367b3f5ca'
+name: detlab_det_013_scheduled_task_create
+status: experimental
+description: 'A scheduled task was created whose action runs PowerShell, a command shell, a script host, a file in a temporary or user folder, or a web address, or one that runs as SYSTEM straight from the command line. Attackers use scheduled tasks to keep their access after a reboot and to run code as a more powerful account. The rule watches both the schtasks command line and the task-creation audit event, so it still works when only one of the two logs is collected.'
+author: 'Detection Lab'
+date: '2026-11-04'
+tags:
+  - attack.persistence
+  - attack.t1053.005
+logsource:
+  product: windows
+  service: security
+detection:
+  selection_1:
+    EventID: 4698
+    TaskContent|re|i: '(powershell|cmd(\.exe)?[\x22\x27]?\s+/[ck]|wscript|cscript|mshta|regsvr32|rundll32|\\(appdata|temp|programdata)\\|\\users\\public\\|https?://)'
+  condition: selection_1
+falsepositives:
+  - 'Software updaters and installers that register their own tasks; administrators scripting maintenance jobs.'
+  - 'Known benign source at the lab site, not part of this export: The browser updater creates its own scheduled tasks under this service account. Pinned to the account and the task name prefix.'
+level: high

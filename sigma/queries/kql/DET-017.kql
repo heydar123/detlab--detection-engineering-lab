@@ -1,0 +1,11 @@
+-- DET-017 query 1
+SecurityEvent
+| where EventID in~ ("1102", "104")
+
+-- DET-017 query 2
+SecurityEvent
+| where EventID == 4719
+
+-- DET-017 query 3
+DeviceProcessEvents
+| where (FolderPath endswith "\\wevtutil.exe" and ProcessCommandLine matches regex "(?i)(\\s(cl|clear-log)\\s|\\s(sl|set-log)\\s.*(/lfn:|/logfilename:|/e:false))") or (ProcessVersionInfoOriginalFileName =~ "wevtutil.exe" and ProcessCommandLine matches regex "(?i)(\\s(cl|clear-log)\\s|\\s(sl|set-log)\\s.*(/lfn:|/logfilename:|/e:false))") or (FolderPath endswith "\\auditpol.exe" and ProcessCommandLine matches regex "(?i)(/clear|/remove|/set\\b.*/(success|failure):disable)") or (ProcessVersionInfoOriginalFileName =~ "auditpol.exe" and ProcessCommandLine matches regex "(?i)(/clear|/remove|/set\\b.*/(success|failure):disable)")

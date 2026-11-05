@@ -1,0 +1,62 @@
+title: 'Credential-dumping command (registry hives, NTDS.dit, comsvcs, ProcDump)'
+id: '5a328935-81fb-52e2-9f45-39f3d765632a'
+name: detlab_det_010
+status: experimental
+description: 'A built-in Windows tool was used the way credential thieves use it: reg.exe saving the SAM, SECURITY or SYSTEM hive, ntdsutil creating an IFM copy of the domain database, rundll32 calling the comsvcs.dll MiniDump function, vssadmin or esentutl copying the NTDS.dit file, or ProcDump pointed at LSASS. These tools are signed Microsoft binaries, so only the command line gives them away.'
+author: 'Detection Lab'
+date: '2026-11-04'
+tags:
+  - attack.credential-access
+  - attack.t1003
+  - attack.t1003.001
+  - attack.t1003.002
+  - attack.t1003.003
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_1:
+    Image|endswith: '\reg.exe'
+    CommandLine|re|i: '\b(save|export)\b.*\bhk(lm|ey_local_machine)\\(sam|security|system)\b'
+  selection_2:
+    OriginalFileName: reg.exe
+    CommandLine|re|i: '\b(save|export)\b.*\bhk(lm|ey_local_machine)\\(sam|security|system)\b'
+  selection_3:
+    Image|endswith: '\ntdsutil.exe'
+    CommandLine|re|i: '(ac(tivate)?\s+i(nstance)?\s+ntds|\bifm\b)'
+  selection_4:
+    OriginalFileName: ntdsutil.exe
+    CommandLine|re|i: '(ac(tivate)?\s+i(nstance)?\s+ntds|\bifm\b)'
+  selection_5:
+    Image|endswith: '\rundll32.exe'
+    CommandLine|re|i: 'comsvcs(\.dll)?[\x22\x27]?[,\s]+(#+0*24|minidump)'
+  selection_6:
+    OriginalFileName: rundll32.exe
+    CommandLine|re|i: 'comsvcs(\.dll)?[\x22\x27]?[,\s]+(#+0*24|minidump)'
+  selection_7:
+    Image|endswith: '\vssadmin.exe'
+    CommandLine|re|i: 'create\s+shadow'
+  selection_8:
+    OriginalFileName: vssadmin.exe
+    CommandLine|re|i: 'create\s+shadow'
+  selection_9:
+    Image|endswith: '\esentutl.exe'
+    CommandLine|re|i: 'ntds\.dit'
+  selection_10:
+    OriginalFileName: esentutl.exe
+    CommandLine|re|i: 'ntds\.dit'
+  selection_11:
+    Image|endswith:
+      - '\procdump.exe'
+      - '\procdump64.exe'
+    CommandLine|re|i: lsass
+  selection_12:
+    OriginalFileName:
+      - procdump.exe
+      - procdump64.exe
+    CommandLine|re|i: lsass
+  condition: 'selection_1 or selection_2 or selection_3 or selection_4 or selection_5 or selection_6 or selection_7 or selection_8 or selection_9 or selection_10 or selection_11 or selection_12'
+falsepositives:
+  - 'Backup and imaging software that creates shadow copies; a domain controller being cloned or restored.'
+  - 'Known benign source at the lab site, not part of this export: The nightly backup job creates a shadow copy with vssadmin (ticket IT-2210). Pinned to this account, this host and this tool, so the same command anywhere else still alerts.'
+level: critical

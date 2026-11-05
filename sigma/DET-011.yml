@@ -1,0 +1,25 @@
+title: 'DCSync - directory replication requested by a non-domain-controller account'
+id: '30d84ddc-7da7-5de3-93fe-2a93ed2962a5'
+name: detlab_det_011
+status: experimental
+description: 'An account that is not a computer account asked a domain controller to replicate password data (the DS-Replication-Get-Changes rights, seen in Security event 4662). Domain controllers do this to each other all the time, and their accounts end in a dollar sign. A user account doing it means someone is pretending to be a domain controller to pull every password hash in the domain (Mimikatz lsadump::dcsync, Covenant, Impacket secretsdump).'
+author: 'Detection Lab'
+date: '2026-11-04'
+tags:
+  - attack.credential-access
+  - attack.t1003.006
+logsource:
+  product: windows
+  service: security
+detection:
+  selection_1:
+    EventID: 4662
+    Properties|re|i: '1131f6a[ad]-9c07-11d1-f79f-00c04fc2dcd2|89e95b76-444d-4c62-991a-0facbeda640c'
+  filter_1_1:
+    EventID: 4662
+    SubjectUserName|endswith: '$'
+  condition: '(selection_1 and not filter_1_1)'
+falsepositives:
+  - 'Directory synchronization products (Azure AD Connect) and some migration tools.'
+  - 'Known benign source at the lab site, not part of this export: The Azure AD Connect sync account replicates directory data on purpose. Tradeoff - an attacker who steals this account can DCSync unseen, so monitor where that account signs in from.'
+level: critical

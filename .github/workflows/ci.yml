@@ -1,0 +1,78 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+# The workflow can only read the repository. Nothing here needs more.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Each "uses:" line is pinned to a full commit hash, not a moving tag, so a changed tag cannot change what runs here.
+# The comment after it names the version. Dependabot (see dependabot.yml) proposes updates to both.
+jobs:
+  test:
+    name: Python ${{ matrix.python }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13", "3.14", "3.15"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ matrix.python }}
+      # requirements.txt holds pytest only. PyYAML is NOT installed here on purpose: this proves the lab runs with the
+      # pure-Python copy that is bundled in detlab/_vendor.
+      - run: python -m pip install -r requirements.txt
+      - name: Lint the rules
+        run: python -m detlab validate
+      - name: Run the unit tests written inside each rule, and prove each exclusion is needed
+        run: python -m detlab test-rules
+      - name: Edit every rule in small ways and check that some test notices each edit
+        run: python -m detlab test-rules --mutate
+      - name: Check that sigma/ still matches the rules
+        run: python -m detlab export-sigma --check
+      - name: Check that the generated documents still match what the lab measures
+        run: python tools/make_docs.py --check
+      - name: Run the test suite
+        run: python -m pytest -q
+      - name: Score the rules on the made-up logs, group alerts into cases, run the red-team check
+        run: python -m detlab run
+      - name: Replay the public attack recordings (development set)
+        run: python -m detlab replay
+      - name: Build the read-only web page
+        run: python -m detlab export-site --out site
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: matrix.python == '3.12'
+        with:
+          name: reports
+          path: |
+            build/*.md
+            site/index.html
+
+  # The same checks again with a real PyYAML installed, to show that both ways of reading YAML give the same answers.
+  with-pyyaml:
+    name: Python 3.12 with PyYAML installed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r requirements.txt pyyaml
+      - run: python -c "import yaml; print('using PyYAML', yaml.__version__)"
+      - run: python -m detlab validate
+      - run: python -m detlab test-rules --mutate
+      - run: python -m detlab export-sigma --check
+      - run: python tools/make_docs.py --check
+      - run: python -m pytest -q

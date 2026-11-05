@@ -1,0 +1,3 @@
+-- DET-032 query 1
+DeviceProcessEvents
+| where FolderPath endswith "\\wsmprovhost.exe" or ProcessVersionInfoOriginalFileName =~ "wsmprovhost.exe"

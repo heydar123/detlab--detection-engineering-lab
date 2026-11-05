@@ -1,0 +1,3 @@
+# DET-011 query 1
+source="WinEventLog:Security" EventCode=4662 NOT (EventCode=4662 SubjectUserName="*$")
+| regex Properties="(?i)1131f6a[ad]-9c07-11d1-f79f-00c04fc2dcd2|89e95b76-444d-4c62-991a-0facbeda640c"

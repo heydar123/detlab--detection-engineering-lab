@@ -1,0 +1,2 @@
+# DET-007 query 1
+source="WinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=1 (Image IN ("*\\whoami.exe", "*\\net.exe", "*\\net1.exe", "*\\nltest.exe", "*\\systeminfo.exe", "*\\quser.exe")) (ParentImage IN ("*\\powershell.exe", "*\\pwsh.exe", "*\\winword.exe", "*\\excel.exe", "*\\outlook.exe"))

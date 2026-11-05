@@ -1,0 +1,4 @@
+# DET-014 query 1
+source="WinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=13
+| regex TargetObject="(?i)\\\\software\\\\(wow6432node\\\\)?microsoft\\\\windows\\\\currentversion\\\\(run|runonce)\\\\[^\\\\]+$"
+| regex Details="(?i)(powershell|cmd(\\.exe)?[\\x22\\x27]?\\s+/[ck]|wscript|cscript|mshta|regsvr32|rundll32|\\\\(appdata|temp|programdata)\\\\|\\\\users\\\\public\\\\|https?://|\\s-enc)"

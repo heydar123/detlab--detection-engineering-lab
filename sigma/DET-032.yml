@@ -1,0 +1,23 @@
+title: 'Incoming PowerShell remoting (WinRM) session started on this computer'
+id: '3b3edafc-bf63-5f9f-bf49-09fcdfd2e1fc'
+name: detlab_det_032
+status: experimental
+description: 'The WinRM host process (wsmprovhost.exe) started. Windows starts it when someone connects to this computer with PowerShell remoting (Invoke-Command, Enter-PSSession). The commands then run inside that process, so they may not start any child process for DET-020 to see. This rule was added after a recorded Covenant PSRemoting command (see docs/replay-results.md) showed exactly that: the session start was the only trace. Administrators use remoting every day, so this is a low severity signal that mostly adds context to a case.'
+author: 'Detection Lab'
+date: '2026-11-04'
+tags:
+  - attack.lateral-movement
+  - attack.t1021.006
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_1:
+    Image|endswith: '\wsmprovhost.exe'
+  selection_2:
+    OriginalFileName: wsmprovhost.exe
+  condition: 'selection_1 or selection_2'
+falsepositives:
+  - 'Administrators and management tools that use PowerShell remoting.'
+  - 'Known benign source at the lab site, not part of this export: The help desk administrator manages the application server with PowerShell remoting every Monday afternoon (ticket IT-2350). Pinned to this admin AND this server, so remoting by anyone else, or to any other host, still alerts.'
+level: low

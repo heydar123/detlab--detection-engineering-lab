@@ -1,0 +1,3 @@
+-- DET-015 query 1
+DeviceRegistryEvents
+| where RegistryKey matches regex "(?i)^(hku\\\\[^\\\\]+_classes|(hku\\\\[^\\\\]+|hkcu)\\\\software\\\\classes)\\\\(ms-settings|mscfile|exefile|folder|ms-windows-store)\\\\shell\\\\(open|runas)\\\\command"

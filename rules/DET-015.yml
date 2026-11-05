@@ -1,0 +1,62 @@
+id: DET-015
+title: UAC bypass - per-user registry hijack of an auto-elevating program
+status: experimental
+severity: high
+attack:
+  tactic: Privilege Escalation
+  technique: T1548.002
+  technique_name: Bypass User Account Control
+description: >
+  A per-user registry key that Windows consults before starting an auto-elevating program (fodhelper.exe,
+  computerdefaults.exe, eventvwr.exe and similar) was written. The attacker plants a command there, starts the
+  Windows program, and the command runs with administrator rights without a prompt. Software almost never
+  writes these keys under a user's own hive, so the key itself is the signal.
+  Windows logs the per-user classes hive under two names: HKCU\Software\Classes (or HKU\<SID>\Software\Classes)
+  and HKU\<SID>_Classes. The rule reads both. The first version read only the first form and missed a real
+  fodhelper recording that used the second (found by the holdout run, fixed afterwards).
+type: match
+filter:
+  action: registry_set
+  registry_key|regex: '(?i)^(hku\\[^\\]+_classes|(hku\\[^\\]+|hkcu)\\software\\classes)\\(ms-settings|mscfile|exefile|folder|ms-windows-store)\\shell\\(open|runas)\\command'
+entity_fields: [host, process_name]
+suppress_seconds: 300
+false_positives: >
+  Almost none. Some file-association tools write similar keys; check the writing program.
+triage:
+  - What wrote the key and what command does it contain?
+  - Did the matching auto-elevating program start within seconds of the write?
+  - What did the elevated process do next?
+response:
+  - Remove the key and isolate the host.
+  - Treat the account as compromised, since it already had a way to run code.
+  - Hunt for the same key on other hosts.
+tests:
+  - name: PowerShell writing the ms-settings command key fires
+    expect: fire
+    events:
+      - {action: registry_set, host: WS-005, process_name: powershell.exe, registry_key: 'HKU\S-1-5-21-3940915590-64593676-1414006259-500\Software\Classes\ms-settings\shell\open\command\(Default)', registry_value: 'powershell.exe -noP -sta -w 1 -enc SQBGACgA'}
+  - name: the eventvwr hijack key fires
+    expect: fire
+    events:
+      - {action: registry_set, host: WS-005, process_name: reg.exe, registry_key: 'HKCU\Software\Classes\mscfile\shell\open\command\(Default)', registry_value: 'c:\temp\a.exe'}
+  - name: a normal file association under the machine hive stays quiet
+    expect: no_fire
+    events:
+      - {action: registry_set, host: WS-005, process_name: msiexec.exe, registry_key: 'HKLM\SOFTWARE\Classes\exefile\shell\open\command\(Default)', registry_value: '"%1" %*'}
+  - name: an unrelated per-user key stays quiet
+    expect: no_fire
+    events:
+      - {action: registry_set, host: WS-005, process_name: explorer.exe, registry_key: 'HKU\S-1-5-21-1\Software\Microsoft\Windows\CurrentVersion\Explorer\UserAssist\x\Count', registry_value: 'Binary Data'}
+  - name: the HKU SID_Classes form that Sysmon logs for the per-user classes hive fires
+    expect: fire
+    events:
+      - {action: registry_set, host: WS-005, process_name: powershell.exe, registry_key: 'HKU\S-1-5-21-1111111111-2222222222-3333333333-1104_Classes\ms-settings\Shell\Open\command\(Default)', registry_value: 'powershell.exe -NoP -W Hidden -c calc'}
+  - name: the SID_Classes form for an unrelated file type stays quiet
+    expect: no_fire
+    events:
+      - {action: registry_set, host: WS-005, process_name: powershell.exe, registry_key: 'HKU\S-1-5-21-1111111111-2222222222-3333333333-1104_Classes\.txt\shell\open\command\(Default)', registry_value: 'notepad.exe %1'}
+  - name: the same event three times in a row is folded into one alert (repeats are throttled, not paged again)
+    expect: fire
+    alerts: 1
+    events:
+      - {action: registry_set, host: WS-005, process_name: powershell.exe, registry_key: 'HKU\S-1-5-21-3940915590-64593676-1414006259-500\Software\Classes\ms-settings\shell\open\command\(Default)', registry_value: 'powershell.exe -noP -sta -w 1 -enc SQBGACgA', repeat: 3, every: 10s}

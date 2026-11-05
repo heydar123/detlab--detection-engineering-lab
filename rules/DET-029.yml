@@ -1,0 +1,58 @@
+id: DET-029
+title: Cloud audit logging or threat detection switched off
+status: experimental
+severity: critical
+attack:
+  tactic: Defense Impairment
+  technique: T1685.002
+  technique_name: Disable or Modify Cloud Log
+description: >
+  A cloud API call that stops or deletes audit logging or threat detection was made (CloudTrail StopLogging or
+  DeleteTrail, GuardDuty DeleteDetector, AWS Config StopConfigurationRecorder or DeleteConfigurationRecorder).
+  An attacker with cloud access turns these off so later actions are not recorded. The rule alerts on the
+  attempt as well as on success, because a refused attempt still shows what the caller was trying to do.
+type: match
+filter:
+  action: cloud_audit
+  event_name|in: [StopLogging, DeleteTrail, DeleteDetector, StopConfigurationRecorder, DeleteConfigurationRecorder]
+entity_fields: [user, event_name, resource]
+false_positives: >
+  Planned changes to the logging setup. These should have a ticket, and the change should be done by the
+  platform team, not by a developer.
+triage:
+  - Who made the call, from which address, and with or without MFA?
+  - What else did the same caller do in the previous hour (new keys, new users, role changes)?
+  - Is logging still off? Turn it back on first.
+response:
+  - Turn logging back on immediately and confirm that it records.
+  - Treat the calling credentials as stolen until shown otherwise. Disable them and review their recent activity.
+tests:
+  - name: CloudTrail StopLogging fires
+    expect: fire
+    events:
+      - {action: cloud_audit, user: dev.ops, event_name: StopLogging, event_source: cloudtrail.amazonaws.com, outcome: success, src_ip: 203.0.113.131, country: RO, mfa_used: false, resource: main-trail}
+  - name: a refused DeleteTrail still fires
+    expect: fire
+    events:
+      - {action: cloud_audit, user: dev.ops, event_name: DeleteTrail, event_source: cloudtrail.amazonaws.com, outcome: failure, resource: main-trail}
+  - name: GuardDuty DeleteDetector fires
+    expect: fire
+    events:
+      - {action: cloud_audit, user: dev.ops, event_name: DeleteDetector, event_source: guardduty.amazonaws.com, outcome: success, resource: detector-1}
+  - name: StartLogging (turning it back on) stays quiet
+    expect: no_fire
+    events:
+      - {action: cloud_audit, user: dev.ops, event_name: StartLogging, event_source: cloudtrail.amazonaws.com, outcome: success, resource: main-trail}
+  - name: an ordinary read call stays quiet
+    expect: no_fire
+    events:
+      - {action: cloud_audit, user: dev.ops, event_name: DescribeTrails, event_source: cloudtrail.amazonaws.com, outcome: success}
+  - name: every listed way of switching off cloud logging is caught
+    expect: fire
+    alerts: 5
+    events:
+      - {action: cloud_audit, user: dev.ops, event_name: StopLogging, event_source: cloudtrail.amazonaws.com, outcome: success, src_ip: 203.0.113.131, country: RO, mfa_used: false, resource: main-trail}
+      - {action: cloud_audit, user: dev.ops, event_name: DeleteTrail, event_source: cloudtrail.amazonaws.com, outcome: success, src_ip: 203.0.113.131, country: RO, mfa_used: false, resource: main-trail}
+      - {action: cloud_audit, user: dev.ops, event_name: DeleteDetector, event_source: guardduty.amazonaws.com, outcome: success, src_ip: 203.0.113.131, country: RO, mfa_used: false, resource: detector-1}
+      - {action: cloud_audit, user: dev.ops, event_name: StopConfigurationRecorder, event_source: config.amazonaws.com, outcome: success, src_ip: 203.0.113.131, country: RO, mfa_used: false, resource: default}
+      - {action: cloud_audit, user: dev.ops, event_name: DeleteConfigurationRecorder, event_source: config.amazonaws.com, outcome: success, src_ip: 203.0.113.131, country: RO, mfa_used: false, resource: default}

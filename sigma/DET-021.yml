@@ -1,0 +1,37 @@
+title: 'Suspicious PowerShell script text (decode-and-run, download-and-run, credential tools, AMSI tampering)'
+id: '3381b67f-d302-5a83-8d87-08bd53ad2025'
+name: detlab_det_021
+status: experimental
+description: 'PowerShell script block logging records the text of the script that really ran, after decoding. This rule looks inside that text for well-known attacker patterns: decoding base64 and running the result, downloading text and running it, credential theft tool names, tampering with the anti-malware scan interface (AMSI), and the reflection trick used to switch off script block logging itself. Because it reads the decoded script, it also catches commands that were built at runtime, which a command-line rule cannot see (see EV-06 and DET-004).'
+author: 'Detection Lab'
+date: '2026-11-04'
+tags:
+  - attack.execution
+  - attack.t1059.001
+  - attack.t1027
+  - attack.t1140
+  - attack.t1685
+  - attack.t1003.001
+logsource:
+  category: ps_script
+  product: windows
+detection:
+  selection_1:
+    ScriptBlockText|re|i|s|all:
+      - frombase64string
+      - '(\biex\b|invoke-expression)'
+  selection_2:
+    ScriptBlockText|re|i|s|all:
+      - '(downloadstring|downloadfile|invoke-webrequest|\biwr\b|net\.webclient|start-bitstransfer)'
+      - '(\biex\b|invoke-expression)'
+  selection_3:
+    ScriptBlockText|re|i: '(invoke-mimikatz|mimikatz|sekurlsa::|invoke-kerberoast|invoke-dcsync)'
+  selection_4:
+    ScriptBlockText|re|i: '(amsiutils|amsiinitfailed|amsicontext)'
+  selection_5:
+    ScriptBlockText|re|i: 'system\.management\.automation\.utils.*cachedgrouppolicysettings'
+  condition: 'selection_1 or selection_2 or selection_3 or selection_4 or selection_5'
+falsepositives:
+  - 'Package manager installers (Chocolatey, Scoop) and some admin deployment scripts download text and run it.'
+  - 'Known benign source at the lab site, not part of this export: The help desk installs the Chocolatey package manager on new workstations with its documented one-line installer (ticket IT-2290). Pinned to this admin, this host AND the whole one-liner, so the installer address inside a comment or a longer script does not match (that was the gap EV-14 found in the first version of this exclusion).'
+level: high

@@ -1,0 +1,80 @@
+id: DET-001
+title: Brute force - many failed logins for one account from one source
+status: stable
+severity: medium
+attack:
+  tactic: Credential Access
+  technique: T1110.001
+  technique_name: Password Guessing
+description: >
+  20 or more failed logins for the same account from the same source IP inside
+  5 minutes. Indicates automated password guessing against a single account.
+type: threshold
+filter:
+  action: login
+  outcome: failure
+group_by: [src_ip, user]
+window_seconds: 300
+threshold: 20
+exclusions:
+  - match:
+      src_ip: 10.0.5.50
+    reason: Approved weekly vulnerability scanner (change ticket SEC-1042). Review every quarter.
+false_positives: >
+  Scanners, misconfigured service accounts with a stale password, users hammering
+  a locked account.
+triage:
+  - Is the source IP internal or external? Check reputation and geolocation.
+  - Did any success follow the failures for the same account (see DET-005)?
+  - Is the account privileged or a service account?
+  - Check whether the account is locked out and whether lockout policy is working.
+response:
+  - Block or rate-limit the source IP at the perimeter.
+  - If a success followed, treat the account as compromised - reset credentials and revoke sessions.
+  - Enforce MFA on the targeted service if it is exposed to the internet.
+tests:
+  - name: 25 failed logins in one minute against one account fire
+    expect: fire
+    events:
+      - {action: login, outcome: failure, user: j.smith, src_ip: 203.0.113.45, country: RU, service: rdp, repeat: 25, every: 2s}
+  - name: exactly 20 failures inside 5 minutes fire (the threshold itself counts)
+    expect: fire
+    events:
+      - {action: login, outcome: failure, user: j.smith, src_ip: 203.0.113.45, country: RU, service: rdp, repeat: 20, every: 14s}
+  - name: 19 failures inside 5 minutes stay under the threshold
+    expect: no_fire
+    events:
+      - {action: login, outcome: failure, user: j.smith, src_ip: 203.0.113.45, country: RU, service: rdp, repeat: 19, every: 14s}
+  - name: ordinary typos before a good login stay quiet
+    expect: no_fire
+    events:
+      - {action: login, outcome: failure, user: a.nguyen, src_ip: 198.51.100.20, country: US, service: o365, repeat: 2, every: 10s}
+      - {action: login, outcome: success, user: a.nguyen, src_ip: 198.51.100.20, country: US, service: o365}
+  - name: the approved vulnerability scanner is excluded
+    expect: no_fire
+    events:
+      - {action: login, outcome: failure, user: svc_backup, src_ip: 10.0.5.50, country: US, service: ssh, repeat: 30, every: 4s}
+  - name: 25 successful logins from one address are ordinary (only failures are counted)
+    expect: no_fire
+    events:
+      - {action: login, outcome: success, user: j.smith, src_ip: 203.0.113.45, country: US, service: rdp, repeat: 25, every: 2s}
+  - name: 20 failures from the first to the last exactly 5 minutes apart still fire (the window edge itself counts)
+    expect: fire
+    events:
+      - {action: login, outcome: failure, user: j.smith, src_ip: 203.0.113.45, country: RU, service: rdp, repeat: 19, every: 1s}
+      - {at: 300s, action: login, outcome: failure, user: j.smith, src_ip: 203.0.113.45, country: RU, service: rdp}
+  - name: the same 20 failures with the last one a second later are outside the window
+    expect: no_fire
+    events:
+      - {action: login, outcome: failure, user: j.smith, src_ip: 203.0.113.45, country: RU, service: rdp, repeat: 19, every: 1s}
+      - {at: 301s, action: login, outcome: failure, user: j.smith, src_ip: 203.0.113.45, country: RU, service: rdp}
+  - name: failures against one account from two addresses are counted per address (10 each stays quiet)
+    expect: no_fire
+    events:
+      - {action: login, outcome: failure, user: j.smith, src_ip: 203.0.113.45, country: RU, service: rdp, repeat: 10, every: 2s}
+      - {action: login, outcome: failure, user: j.smith, src_ip: 203.0.113.46, country: RU, service: rdp, repeat: 10, every: 2s}
+  - name: failures from one address against two accounts are counted per account (10 each stays quiet)
+    expect: no_fire
+    events:
+      - {action: login, outcome: failure, user: j.smith, src_ip: 203.0.113.45, country: RU, service: rdp, repeat: 10, every: 2s}
+      - {action: login, outcome: failure, user: a.nguyen, src_ip: 203.0.113.45, country: RU, service: rdp, repeat: 10, every: 2s}

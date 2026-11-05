@@ -1,0 +1,3 @@
+-- DET-013 query 1
+DeviceProcessEvents
+| where (FolderPath endswith "\\schtasks.exe" and (ProcessCommandLine matches regex "(?i)/create\\b" and ProcessCommandLine matches regex "(?i)(/ru\\s+[\\x22\\x27]?system|powershell|cmd(\\.exe)?[\\x22\\x27]?\\s+/[ck]|wscript|cscript|mshta|regsvr32|rundll32|\\\\(appdata|temp|programdata)\\\\|\\\\users\\\\public\\\\|https?://)")) or (ProcessVersionInfoOriginalFileName =~ "schtasks.exe" and (ProcessCommandLine matches regex "(?i)/create\\b" and ProcessCommandLine matches regex "(?i)(/ru\\s+[\\x22\\x27]?system|powershell|cmd(\\.exe)?[\\x22\\x27]?\\s+/[ck]|wscript|cscript|mshta|regsvr32|rundll32|\\\\(appdata|temp|programdata)\\\\|\\\\users\\\\public\\\\|https?://)"))

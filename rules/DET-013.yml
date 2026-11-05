@@ -1,0 +1,84 @@
+id: DET-013
+title: Scheduled task created with a script, shell, or user-folder action
+status: experimental
+severity: high
+attack:
+  tactic: Persistence
+  technique: T1053.005
+  technique_name: Scheduled Task
+description: >
+  A scheduled task was created whose action runs PowerShell, a command shell, a script host, a file in a
+  temporary or user folder, or a web address, or one that runs as SYSTEM straight from the command line.
+  Attackers use scheduled tasks to keep their access after a reboot and to run code as a more powerful
+  account. The rule watches both the schtasks command line and the task-creation audit event, so it still
+  works when only one of the two logs is collected.
+type: match
+filter:
+  - action: process_create
+    process_name,original_name: schtasks.exe
+    command_line|regex: '(?i)^(?=.*/create\b)(?=.*(/ru\s+[\x22\x27]?system|powershell|cmd(\.exe)?[\x22\x27]?\s+/[ck]|wscript|cscript|mshta|regsvr32|rundll32|\\(appdata|temp|programdata)\\|\\users\\public\\|https?://))'
+  - action: scheduled_task_create
+    task_command|regex: '(?i)(powershell|cmd(\.exe)?[\x22\x27]?\s+/[ck]|wscript|cscript|mshta|regsvr32|rundll32|\\(appdata|temp|programdata)\\|\\users\\public\\|https?://)'
+entity_fields: [user, host]
+suppress_seconds: 300
+exclusions:
+  - match:
+      user: svc_updater
+      task_name|startswith: '\GoogleUpdateTask'
+    reason: The browser updater creates its own scheduled tasks under this service account. Pinned to the account and the task name prefix.
+false_positives: >
+  Software updaters and installers that register their own tasks; administrators scripting maintenance jobs.
+triage:
+  - Read the task action in full. Does it run a script or a file in a user-writable folder?
+  - Which account created it, and from which parent process?
+  - When will it run, and as which account?
+response:
+  - Disable and export the task, then collect the file it runs.
+  - Check the account that created it for other persistence (run keys, new services).
+  - Remove the task after evidence is collected.
+tests:
+  - name: schtasks creating a PowerShell task fires
+    expect: fire
+    events:
+      - {action: process_create, user: pgustavo, host: WS-005, process_name: schtasks.exe, parent_process: powershell.exe, command_line: 'schtasks /Create /F /SC DAILY /ST 09:00 /TN Updater /TR "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NonI -W hidden -c IEX"'}
+  - name: a task that runs as SYSTEM from the command line fires
+    expect: fire
+    events:
+      - {action: process_create, user: j.smith, host: WS-002, process_name: schtasks.exe, parent_process: cmd.exe, command_line: 'schtasks /create /tn x /tr c:\tools\a.exe /sc onstart /ru SYSTEM'}
+  - name: the task-creation audit event with a user-folder action fires
+    expect: fire
+    events:
+      - {action: scheduled_task_create, user: j.smith, host: WS-002, task_name: '\Updater', task_command: 'C:\Users\j.smith\AppData\Roaming\u.exe'}
+  - name: schtasks querying tasks stays quiet
+    expect: no_fire
+    events:
+      - {action: process_create, user: it.admin, host: WS-001, process_name: schtasks.exe, parent_process: cmd.exe, command_line: 'schtasks /query /fo LIST'}
+  - name: a task that runs a normal program under Program Files stays quiet
+    expect: no_fire
+    events:
+      - {action: scheduled_task_create, user: it.admin, host: SRV-FILE-01, task_name: '\Cleanup', task_command: '"C:\Program Files\Tools\cleanup.exe" /quiet'}
+  - name: the browser updater task is excluded
+    expect: no_fire
+    events:
+      - {action: scheduled_task_create, user: svc_updater, host: WS-003, task_name: '\GoogleUpdateTaskMachineCore', task_command: 'C:\Users\svc_updater\AppData\Local\Google\Update\GoogleUpdate.exe /c'}
+  - name: the updater account creating some other task still fires
+    expect: fire
+    events:
+      - {action: scheduled_task_create, user: svc_updater, host: WS-003, task_name: '\Cleanup', task_command: 'powershell.exe -w hidden -c C:\Users\Public\x.ps1'}
+  - name: the same words typed into another program do not count
+    expect: no_fire
+    events:
+      - {action: process_create, user: k.lee, host: WS-004, process_name: notepad.exe, parent_process: explorer.exe, command_line: 'notepad.exe notes about schtasks /create /tn Updater /tr powershell.exe'}
+  - name: running an existing PowerShell task is not creating one
+    expect: no_fire
+    events:
+      - {action: process_create, user: k.lee, host: WS-004, process_name: schtasks.exe, parent_process: cmd.exe, command_line: 'schtasks.exe /run /tn \Microsoft\Windows\PowerShell\ScheduledJobs\Nightly'}
+  - name: creating an ordinary task that starts a normal program stays quiet
+    expect: no_fire
+    events:
+      - {action: process_create, user: k.lee, host: WS-004, process_name: schtasks.exe, parent_process: cmd.exe, command_line: 'schtasks.exe /create /tn Backup /tr C:\Windows\System32\notepad.exe /sc daily'}
+  - name: the same event three times in a row is folded into one alert (repeats are throttled, not paged again)
+    expect: fire
+    alerts: 1
+    events:
+      - {action: process_create, user: pgustavo, host: WS-005, process_name: schtasks.exe, parent_process: powershell.exe, command_line: 'schtasks /Create /F /SC DAILY /ST 09:00 /TN Updater /TR "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NonI -W hidden -c IEX"', repeat: 3, every: 10s}

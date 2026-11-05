@@ -1,0 +1,87 @@
+id: DET-027
+title: Sign-in from a network provider this account has never used
+status: experimental
+severity: low
+attack:
+  tactic: Initial Access
+  technique: T1078
+  technique_name: Valid Accounts
+description: >
+  For the first 7 days the rule only learns which network providers (autonomous systems, ASN) each account signs
+  in from. After that, a successful cloud or VPN sign-in from a provider that account has never used raises a
+  low severity alert, once per new provider. This catches a stolen login used from a different provider in the
+  SAME country, which the country-based impossible travel rule (DET-003) cannot see (EV-05). It is a weak
+  signal on its own. A person who travels, or changes internet provider, triggers it too, and that is accepted:
+  the alert feeds the case and risk score rather than paging anyone.
+type: first_seen
+filter:
+  action: login
+  outcome: success
+  service|in: [o365, vpn]
+group_by: [user]
+value_field: asn
+learning_seconds: 604800
+false_positives: >
+  Real travel, a new home internet provider, a phone on a mobile network for the first time.
+triage:
+  - Compare the new provider with the account's usual one. Is it a hosting or VPN provider?
+  - Were there other alerts for the same account in the same period (impossible travel, MFA prompts)?
+  - Ask the person whether they were travelling or changed provider.
+response:
+  - If the person did not sign in, revoke sessions and reset the password.
+  - If it was real travel, no action is needed. The alert is recorded in the case.
+tests:
+  - name: a new provider after the learning week fires
+    expect: fire
+    events:
+      - {action: login, user: a.nguyen, outcome: success, service: o365, src_ip: 198.51.100.20, country: US, asn: AS64496}
+      - {action: login, user: a.nguyen, outcome: success, service: o365, src_ip: 198.51.100.20, country: US, asn: AS64496, at: 2d}
+      - {action: login, user: a.nguyen, outcome: success, service: o365, src_ip: 198.51.100.250, country: US, asn: AS64500, at: 8d}
+  - name: the same new provider used twice raises one alert
+    expect: fire
+    alerts: 1
+    events:
+      - {action: login, user: a.nguyen, outcome: success, service: o365, asn: AS64496}
+      - {action: login, user: a.nguyen, outcome: success, service: o365, asn: AS64500, at: 8d}
+      - {action: login, user: a.nguyen, outcome: success, service: o365, asn: AS64500, at: 9d}
+  - name: the usual provider after the learning week stays quiet
+    expect: no_fire
+    events:
+      - {action: login, user: a.nguyen, outcome: success, service: o365, asn: AS64496}
+      - {action: login, user: a.nguyen, outcome: success, service: o365, asn: AS64496, at: 9d}
+  - name: a second provider seen during the learning week is learned, not alerted
+    expect: no_fire
+    events:
+      - {action: login, user: a.nguyen, outcome: success, service: o365, asn: AS64496}
+      - {action: login, user: a.nguyen, outcome: success, service: vpn, asn: AS64510, at: 3d}
+      - {action: login, user: a.nguyen, outcome: success, service: vpn, asn: AS64510, at: 9d}
+  - name: an account that was not seen in the learning week has nothing to compare with
+    expect: no_fire
+    events:
+      - {action: login, user: a.nguyen, outcome: success, service: o365, asn: AS64496}
+      - {action: login, user: new.hire, outcome: success, service: o365, asn: AS64500, at: 9d}
+  - name: failed sign-ins do not count
+    expect: no_fire
+    events:
+      - {action: login, user: a.nguyen, outcome: success, service: o365, asn: AS64496}
+      - {action: login, user: a.nguyen, outcome: failure, service: o365, asn: AS64500, at: 9d}
+  - name: sign-ins to other services (rdp) do not count
+    expect: no_fire
+    events:
+      - {action: login, user: a.nguyen, outcome: success, service: o365, asn: AS64496}
+      - {action: login, user: a.nguyen, outcome: success, service: rdp, asn: AS64500, at: 9d}
+  - name: a new provider on the VPN after the learning week fires
+    expect: fire
+    events:
+      - {action: login, user: a.nguyen, outcome: success, service: vpn, asn: AS64496}
+      - {action: login, user: a.nguyen, outcome: success, service: vpn, asn: AS64500, at: 8d}
+  - name: a new provider one second before the learning week ends is still learned
+    expect: no_fire
+    events:
+      - {action: login, user: a.nguyen, outcome: success, service: o365, asn: AS64496}
+      - {action: login, user: a.nguyen, outcome: success, service: o365, asn: AS64500, at: 604799}
+  - name: a new provider exactly when the learning week ends fires
+    expect: fire
+    events:
+      - {action: login, user: a.nguyen, outcome: success, service: o365, asn: AS64496}
+      - {action: login, user: a.nguyen, outcome: success, service: o365, asn: AS64500, at: 604800}

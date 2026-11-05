@@ -1,0 +1,94 @@
+id: DET-026
+title: Network logon fan-out - one account signs in to many computers quickly
+status: experimental
+severity: high
+attack:
+  tactic: Lateral Movement
+  technique: T1021
+  technique_name: Remote Services
+  also: [T1078.002]
+description: >
+  One account signed in over the network (logon type 3) to at least 8 different computers from the same source
+  inside 15 minutes. People rarely touch that many machines that fast. Attackers who stole an account use it to
+  spread, and automated tools sweep the network the same way. A sweep that touches fewer than 8 machines in 15
+  minutes is not caught.
+type: distinct_threshold
+filter:
+  action: host_logon
+  outcome: success
+  logon_type: 3
+group_by: [user, src_ip]
+distinct_field: host
+window_seconds: 900
+threshold: 8
+exclusions:
+  - match:
+      user: svc_scan
+      src_ip: 10.0.5.50
+    reason: The weekly credentialed vulnerability scan signs in to every server (change ticket SEC-1042). Pinned to the scan account AND the scanner address, so the same pattern from any other source still alerts.
+false_positives: >
+  Vulnerability scanners, patch and inventory tools, backup software, and administrators using a jump host.
+triage:
+  - Which computer did the sign-ins come from, and is it a management host?
+  - Is the account an admin account, and did the person expect to touch these computers?
+  - What ran on the computers right after each sign-in (see DET-012 and DET-020)?
+response:
+  - Isolate the source computer and reset the account if the pattern is not expected.
+  - List every computer the account signed in to, and check each one.
+tests:
+  - name: 10 different computers in 5 minutes fire
+    expect: fire
+    events:
+      - {action: host_logon, user: d.okafor, src_ip: 198.51.100.23, outcome: success, logon_type: 3, host: 'SRV-{i}', repeat: 10, every: 30s}
+  - name: exactly 8 different computers fire (the threshold itself counts)
+    expect: fire
+    events:
+      - {action: host_logon, user: d.okafor, src_ip: 198.51.100.23, outcome: success, logon_type: 3, host: 'SRV-{i}', repeat: 8, every: 30s}
+  - name: 7 different computers stay under the threshold
+    expect: no_fire
+    events:
+      - {action: host_logon, user: d.okafor, src_ip: 198.51.100.23, outcome: success, logon_type: 3, host: 'SRV-{i}', repeat: 7, every: 30s}
+  - name: many sign-ins to the same computer stay quiet
+    expect: no_fire
+    events:
+      - {action: host_logon, user: d.okafor, src_ip: 198.51.100.23, outcome: success, logon_type: 3, host: SRV-1, repeat: 40, every: 10s}
+  - name: 12 computers spread over two hours stay quiet
+    expect: no_fire
+    events:
+      - {action: host_logon, user: d.okafor, src_ip: 198.51.100.23, outcome: success, logon_type: 3, host: 'SRV-{i}', repeat: 12, every: 10m}
+  - name: failed sign-ins do not count
+    expect: no_fire
+    events:
+      - {action: host_logon, user: d.okafor, src_ip: 198.51.100.23, outcome: failure, logon_type: 3, host: 'SRV-{i}', repeat: 12, every: 10s}
+  - name: console sign-ins (type 2) do not count
+    expect: no_fire
+    events:
+      - {action: host_logon, user: d.okafor, src_ip: 198.51.100.23, outcome: success, logon_type: 2, host: 'SRV-{i}', repeat: 12, every: 10s}
+  - name: the credentialed vulnerability scan is excluded
+    expect: no_fire
+    events:
+      - {action: host_logon, user: svc_scan, src_ip: 10.0.5.50, outcome: success, logon_type: 3, host: 'SRV-{i}', repeat: 30, every: 5s}
+  - name: the scan account from another source address still fires
+    expect: fire
+    events:
+      - {action: host_logon, user: svc_scan, src_ip: 198.51.100.23, outcome: success, logon_type: 3, host: 'SRV-{i}', repeat: 30, every: 5s}
+  - name: 8 different computers from the first to the last exactly 15 minutes apart still fire (the window edge counts)
+    expect: fire
+    events:
+      - {action: host_logon, user: d.okafor, src_ip: 198.51.100.23, outcome: success, logon_type: 3, host: "SRV-{i}", repeat: 7, every: 1s}
+      - {at: 900s, action: host_logon, user: d.okafor, src_ip: 198.51.100.23, outcome: success, logon_type: 3, host: SRV-LAST}
+  - name: the same 8 computers with the last one a second later are outside the window
+    expect: no_fire
+    events:
+      - {action: host_logon, user: d.okafor, src_ip: 198.51.100.23, outcome: success, logon_type: 3, host: "SRV-{i}", repeat: 7, every: 1s}
+      - {at: 901s, action: host_logon, user: d.okafor, src_ip: 198.51.100.23, outcome: success, logon_type: 3, host: SRV-LAST}
+  - name: two accounts from one address are counted per account (5 different computers each stays quiet)
+    expect: no_fire
+    events:
+      - {action: host_logon, user: d.okafor, src_ip: 198.51.100.23, outcome: success, logon_type: 3, host: "SRV-A{i}", repeat: 5, every: 10s}
+      - {action: host_logon, user: k.lee, src_ip: 198.51.100.23, outcome: success, logon_type: 3, host: "SRV-B{i}", repeat: 5, every: 10s}
+  - name: one account from two addresses is counted per address (5 different computers each stays quiet)
+    expect: no_fire
+    events:
+      - {action: host_logon, user: d.okafor, src_ip: 198.51.100.23, outcome: success, logon_type: 3, host: "SRV-A{i}", repeat: 5, every: 10s}
+      - {action: host_logon, user: d.okafor, src_ip: 198.51.100.24, outcome: success, logon_type: 3, host: "SRV-B{i}", repeat: 5, every: 10s}

@@ -1,0 +1,2 @@
+# DET-032 query 1
+source="WinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=1 (Image="*\\wsmprovhost.exe" OR OriginalFileName="wsmprovhost.exe")

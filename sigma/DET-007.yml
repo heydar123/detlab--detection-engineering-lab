@@ -1,0 +1,33 @@
+title: 'Discovery commands launched from PowerShell or an Office app'
+id: '6123f139-20c1-55f0-869a-8f6036ff1744'
+name: detlab_det_007
+status: stable
+description: 'A reconnaissance command (whoami, net, nltest, systeminfo, quser) started by PowerShell or an Office application. Once an attacker has code running on a machine, one of the first things they do is ask who they are and what is around them. The same commands typed into a normal command prompt by a technician are common, so this rule only fires when the parent process is a script host or an Office app. Related techniques are T1069.002 (Domain Groups, for net group) and T1082 (System Information Discovery, for systeminfo).'
+author: 'Detection Lab'
+date: '2026-11-04'
+tags:
+  - attack.discovery
+  - attack.t1033
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_1:
+    Image|endswith:
+      - '\whoami.exe'
+      - '\net.exe'
+      - '\net1.exe'
+      - '\nltest.exe'
+      - '\systeminfo.exe'
+      - '\quser.exe'
+    ParentImage|endswith:
+      - '\powershell.exe'
+      - '\pwsh.exe'
+      - '\winword.exe'
+      - '\excel.exe'
+      - '\outlook.exe'
+  condition: selection_1
+falsepositives:
+  - 'Inventory and management scripts, administrators running one-liners from a PowerShell window, login scripts.'
+  - 'Known benign source at the lab site, not part of this export: Weekly inventory script on the backup server runs whoami and systeminfo from PowerShell (ticket IT-2231). Pinned to this user AND host.'
+level: medium

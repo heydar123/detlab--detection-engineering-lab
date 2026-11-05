@@ -1,0 +1,85 @@
+id: DET-024
+title: DNS tunnel - many different names under one domain from one host
+status: experimental
+severity: medium
+attack:
+  tactic: Command and Control
+  technique: T1071.004
+  technique_name: DNS
+  also: [T1048.003]
+description: >
+  One host looked up at least 40 different names under the same registered domain inside 10 minutes. A DNS
+  tunnel hides data in the name itself (a long random-looking label in front of the attacker's domain), so every
+  message is a new name. Normal use looks up a handful of names per domain. A tunnel that sends fewer than 40
+  names in 10 minutes is not caught; see EV-09.
+type: distinct_threshold
+filter:
+  action: dns_query
+group_by: [host, domain]
+distinct_field: query
+window_seconds: 600
+threshold: 40
+exclusions:
+  - match:
+      process_name: avagent.exe
+      domain: avcloud.example
+    reason: The antivirus agent looks up file reputation with one DNS name per file under its vendor domain (ticket SEC-1190). Pinned to the agent AND the vendor domain, so a tunnel under any other domain still alerts.
+false_positives: >
+  Antivirus and reputation services that encode a hash in the name, content delivery networks, some email
+  security tools.
+triage:
+  - Look at a few of the names. Are the left-most labels long, random-looking, or base32/base64 text?
+  - Who owns the domain, and how old is it?
+  - What program is asking, and how much data could the names carry?
+response:
+  - Block the domain at the resolver and isolate the host if the program is not recognised.
+  - Search resolver logs for the same domain from other hosts.
+tests:
+  - name: 50 different names under one domain in a few minutes fire
+    expect: fire
+    events:
+      - {action: dns_query, host: WS-007, process_name: rundll32.exe, domain: tun.example.org, query: 'a{i}x9f2k.tun.example.org', query_type: TXT, repeat: 50, every: 5s}
+  - name: exactly 40 different names fire (the threshold itself counts)
+    expect: fire
+    events:
+      - {action: dns_query, host: WS-007, domain: tun.example.org, query: 'a{i}.tun.example.org', repeat: 40, every: 5s}
+  - name: 39 different names stay under the threshold
+    expect: no_fire
+    events:
+      - {action: dns_query, host: WS-007, domain: tun.example.org, query: 'a{i}.tun.example.org', repeat: 39, every: 5s}
+  - name: the same name looked up 100 times stays quiet
+    expect: no_fire
+    events:
+      - {action: dns_query, host: WS-002, process_name: chrome.exe, domain: example.com, query: www.example.com, repeat: 100, every: 2s}
+  - name: 50 different names spread over two hours stay quiet
+    expect: no_fire
+    events:
+      - {action: dns_query, host: WS-002, domain: example.com, query: 'host{i}.example.com', repeat: 50, every: 150s}
+  - name: the antivirus reputation lookups are excluded
+    expect: no_fire
+    events:
+      - {action: dns_query, host: WS-004, process_name: avagent.exe, domain: avcloud.example, query: 'h{i}.rep.avcloud.example', repeat: 120, every: 2s}
+  - name: the same pattern from another program still fires
+    expect: fire
+    events:
+      - {action: dns_query, host: WS-004, process_name: rundll32.exe, domain: avcloud.example, query: 'h{i}.rep.avcloud.example', repeat: 120, every: 2s}
+  - name: 40 different names from the first to the last exactly 10 minutes apart still fire (the window edge counts)
+    expect: fire
+    events:
+      - {action: dns_query, host: WS-007, domain: tun.example.org, query: "a{i}.tun.example.org", repeat: 39, every: 1s}
+      - {at: 600s, action: dns_query, host: WS-007, domain: tun.example.org, query: last.tun.example.org}
+  - name: the same 40 names with the last one a second later are outside the window
+    expect: no_fire
+    events:
+      - {action: dns_query, host: WS-007, domain: tun.example.org, query: "a{i}.tun.example.org", repeat: 39, every: 1s}
+      - {at: 601s, action: dns_query, host: WS-007, domain: tun.example.org, query: last.tun.example.org}
+  - name: two hosts asking under the same domain are counted per host (25 different names each stays quiet)
+    expect: no_fire
+    events:
+      - {action: dns_query, host: WS-007, domain: tun.example.org, query: "a{i}.tun.example.org", repeat: 25, every: 5s}
+      - {action: dns_query, host: WS-008, domain: tun.example.org, query: "b{i}.tun.example.org", repeat: 25, every: 5s}
+  - name: one host asking under two domains is counted per domain (25 different names each stays quiet)
+    expect: no_fire
+    events:
+      - {action: dns_query, host: WS-007, domain: tun.example.org, query: "a{i}.tun.example.org", repeat: 25, every: 5s}
+      - {action: dns_query, host: WS-007, domain: other.example.net, query: "b{i}.other.example.net", repeat: 25, every: 5s}

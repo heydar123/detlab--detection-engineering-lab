@@ -1,0 +1,78 @@
+id: DET-018
+title: Firewall opened for inbound traffic, firewall turned off, or port forward created
+status: experimental
+severity: medium
+attack:
+  tactic: Defense Impairment
+  technique: T1686
+  technique_name: Disable or Modify System Firewall
+  also: [T1090.001]
+description: >
+  The netsh command was used to add an inbound "allow" firewall rule, to turn the host firewall off, or to
+  create a port forward (portproxy). Attackers do this to let their tool accept connections, to remove a
+  barrier, or to relay traffic through a host they control. The command is also normal for administrators, so
+  this is a medium severity signal that needs context (who, which port, was there a ticket).
+type: match
+filter:
+  action: process_create
+  process_name,original_name: netsh.exe
+  command_line|regex: '(?i)(^(?=.*advfirewall\s+firewall\s+add\s+rule)(?=.*dir=in\b)(?=.*action=allow)|advfirewall\s+set\s+\S+\s+state\s+off|firewall\s+set\s+opmode\s+(mode=)?disable|interface\s+portproxy\s+add)'
+entity_fields: [user, host]
+suppress_seconds: 300
+exclusions:
+  - match:
+      user: it.admin
+      host: SRV-FILE-01
+      command_line|contains: 'name="Monitoring Agent"'
+    reason: The monitoring agent needs one inbound port on the file server (ticket IT-2301). Pinned to this admin, this host AND the rule name, so any other firewall change still alerts.
+false_positives: >
+  Administrators opening a port for a new service; installers that add their own firewall rule.
+triage:
+  - Which port and program does the rule allow? Is that program expected on this host?
+  - Who ran it, from which parent process, and was there a change ticket?
+  - For a port forward, where does it forward to?
+response:
+  - Remove the rule or forward if it is not approved, and record the exact command.
+  - Check for a listener on the opened port and for connections to it from outside.
+tests:
+  - name: adding an inbound allow rule fires
+    expect: fire
+    events:
+      - {action: process_create, user: wardog, host: WS-005, process_name: netsh.exe, parent_process: cmd.exe, command_line: 'netsh advfirewall firewall add rule name="Updater" dir=in action=allow protocol=TCP localport=4444'}
+  - name: the same rule with the words in another order fires
+    expect: fire
+    events:
+      - {action: process_create, user: wardog, host: WS-005, process_name: netsh.exe, parent_process: cmd.exe, command_line: 'netsh advfirewall firewall add rule action=allow protocol=TCP localport=4444 dir=in name=x'}
+  - name: turning the firewall off for all profiles fires
+    expect: fire
+    events:
+      - {action: process_create, user: wardog, host: WS-005, process_name: netsh.exe, parent_process: cmd.exe, command_line: 'netsh advfirewall set allprofiles state off'}
+  - name: creating a port forward fires
+    expect: fire
+    events:
+      - {action: process_create, user: wardog, host: WS-005, process_name: netsh.exe, parent_process: cmd.exe, command_line: 'netsh interface portproxy add v4tov4 listenport=8080 connectaddress=10.0.0.5 connectport=80'}
+  - name: an outbound block rule stays quiet
+    expect: no_fire
+    events:
+      - {action: process_create, user: it.admin, host: WS-001, process_name: netsh.exe, parent_process: cmd.exe, command_line: 'netsh advfirewall firewall add rule name="Block X" dir=out action=block program="C:\x.exe"'}
+  - name: only showing the firewall state stays quiet
+    expect: no_fire
+    events:
+      - {action: process_create, user: it.admin, host: WS-001, process_name: netsh.exe, parent_process: cmd.exe, command_line: 'netsh advfirewall show allprofiles'}
+  - name: the monitoring agent rule on the file server is excluded
+    expect: no_fire
+    events:
+      - {action: process_create, user: it.admin, host: SRV-FILE-01, process_name: netsh.exe, parent_process: cmd.exe, command_line: 'netsh advfirewall firewall add rule name="Monitoring Agent" dir=in action=allow protocol=TCP localport=9100'}
+  - name: the same admin opening a different port on the same host still fires
+    expect: fire
+    events:
+      - {action: process_create, user: it.admin, host: SRV-FILE-01, process_name: netsh.exe, parent_process: cmd.exe, command_line: 'netsh advfirewall firewall add rule name="Other" dir=in action=allow protocol=TCP localport=4444'}
+  - name: the same words typed into another program do not count
+    expect: no_fire
+    events:
+      - {action: process_create, user: k.lee, host: WS-004, process_name: notepad.exe, parent_process: explorer.exe, command_line: 'notepad.exe notes about netsh advfirewall set allprofiles state off'}
+  - name: the same event three times in a row is folded into one alert (repeats are throttled, not paged again)
+    expect: fire
+    alerts: 1
+    events:
+      - {action: process_create, user: wardog, host: WS-005, process_name: netsh.exe, parent_process: cmd.exe, command_line: 'netsh advfirewall firewall add rule name="Updater" dir=in action=allow protocol=TCP localport=4444', repeat: 3, every: 10s}

@@ -1,0 +1,25 @@
+title: 'Cloud audit logging or threat detection switched off'
+id: c122f64b-d586-5d2d-a42c-bce587e0ecb4
+name: detlab_det_029
+status: experimental
+description: 'A cloud API call that stops or deletes audit logging or threat detection was made (CloudTrail StopLogging or DeleteTrail, GuardDuty DeleteDetector, AWS Config StopConfigurationRecorder or DeleteConfigurationRecorder). An attacker with cloud access turns these off so later actions are not recorded. The rule alerts on the attempt as well as on success, because a refused attempt still shows what the caller was trying to do.'
+author: 'Detection Lab'
+date: '2026-11-04'
+tags:
+  - attack.defense-impairment
+  - attack.t1685.002
+logsource:
+  product: aws
+  service: cloudtrail
+detection:
+  selection_1:
+    eventName:
+      - StopLogging
+      - DeleteTrail
+      - DeleteDetector
+      - StopConfigurationRecorder
+      - DeleteConfigurationRecorder
+  condition: selection_1
+falsepositives:
+  - 'Planned changes to the logging setup. These should have a ticket, and the change should be done by the platform team, not by a developer.'
+level: critical

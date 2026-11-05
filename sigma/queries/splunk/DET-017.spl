@@ -1,0 +1,17 @@
+# DET-017 query 1
+EventCode IN (1102, 104)
+
+# DET-017 query 2
+source="WinEventLog:Security" EventCode=4719
+
+# DET-017 query 3
+source="WinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=1
+| rex field=CommandLine "(?<CommandLineMatch>(?i)(\\s(cl|clear-log)\\s|\\s(sl|set-log)\\s.*(/lfn:|/logfilename:|/e:false)))"
+| eval CommandLineCondition=if(isnotnull(CommandLineMatch), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch2>(?i)(\\s(cl|clear-log)\\s|\\s(sl|set-log)\\s.*(/lfn:|/logfilename:|/e:false)))"
+| eval CommandLineCondition2=if(isnotnull(CommandLineMatch2), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch3>(?i)(/clear|/remove|/set\\b.*/(success|failure):disable))"
+| eval CommandLineCondition3=if(isnotnull(CommandLineMatch3), "true", "false")
+| rex field=CommandLine "(?<CommandLineMatch4>(?i)(/clear|/remove|/set\\b.*/(success|failure):disable))"
+| eval CommandLineCondition4=if(isnotnull(CommandLineMatch4), "true", "false")
+| search ((Image="*\\wevtutil.exe" CommandLineCondition="true") OR (OriginalFileName="wevtutil.exe" CommandLineCondition2="true") OR (Image="*\\auditpol.exe" CommandLineCondition3="true") OR (OriginalFileName="auditpol.exe" CommandLineCondition4="true"))
